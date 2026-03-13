@@ -117,8 +117,10 @@
       .hero-nav-item {
         grid-row: 2;
         display: flex;
-        writing-mode: horizontal-tb;
-        transform: none;
+        -webkit-writing-mode: horizontal-tb !important;
+        writing-mode: horizontal-tb !important;
+        text-orientation: initial !important;
+        transform: none !important;
         height: 3.5rem;
         border-left: none;
         border-top: 1px solid rgba(26,26,26,0.12);
