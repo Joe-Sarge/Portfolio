@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#1a5c2a" />
+<title>Pickle Pong</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:#000;display:flex;justify-content:center;align-items:center;overflow:hidden;font-family:monospace}
+  canvas{display:block;max-width:100%;max-height:100vh;cursor:none;touch-action:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<audio id="bgm" src="Drill_V1_Kit_01_142BPM_Am_FullMix.wav" loop></audio>
+<audio id="squeak-snd" src="SQUEAK.band/Media/Audio Files/Sneaker-squeaks-sound-effect.wav"></audio>
+<script>
+// =============================================================
+// BGM — Title screen music
+// =============================================================
+const BGM = {
+  el: null,
+  _unlocked: false,
+
+  init() {
+    this.el = document.getElementById('bgm');
+    this.el.volume = 0.45;
+    // Try immediate autoplay; queue unlock on first gesture if blocked
+    this.el.play().then(() => { this._unlocked = true; }).catch(() => {
+      const unlock = () => {
+        this._unlocked = true;
+        if (STATE.musicEnabled) this.el.play().catch(() => {});
+        document.removeEventListener('mousedown', unlock);
+        document.removeEventListener('touchstart', unlock);
+        document.removeEventListener('keydown', unlock);
+      };
+      document.addEventListener('mousedown', unlock);
+      document.addEventListener('touchstart', unlock);
+      document.addEventListener('keydown', unlock);
+    });
+  },
+
+  play() {
+    if (!this.el || !STATE.musicEnabled) return;
+    if (this._unlocked) this.el.play().catch(() => {});
+    // if not yet unlocked, unlock handler will call play()
+  },
+
+  stop() {
+    if (!this.el) return;
+    this.el.pause();
+    this.el.currentTime = 0;
+  },
+};
+
+// =============================================================
+// SECTION 1 — CONSTANTS & CONFIG
+// =============================================================
+const C = {
+  W: 980, H: 540,
+  COURT_LEFT: 40, COURT_RIGHT: 940,
+  COURT_TOP: 30,  COURT_BOTTOM: 510,
+  NET_Y: 270, NET_H: 6,
+  KITCHEN_TOP_Y: 200,
+  KITCHEN_BOT_Y: 340,
+  CENTER_X: 490,
+
+  BALL_R: 8,
+  BALL_SPEED_INIT: 8,
+  BALL_SPEED_CAP_BASE: 14,
+  BALL_SPEED_MAX: 22,
+  BALL_DECEL: 0.999,
+  GRAVITY: 0.045,
+  SPIN_DECAY: 0.95,
+  SPIN_FACTOR: 0.05,
+  TRAIL_LEN: 6,
+
+  PAD_W: 80, PAD_H: 12,
+  PLAYER_Y: 472, CPU_Y: 68,
+  PAD_SPEED: 7,
+  SERVE_BOX_X: 130,
+
+  WIN_SCORE: 11,
+  WIN_BY: 2,
+
+  AI: {
+    easy:   { delay: 8,  miss: 0.20, spd: 3.2, pred: 10 },
+    normal: { delay: 4,  miss: 0.07, spd: 5.0, pred: 20 },
+    hard:   { delay: 1,  miss: 0.01, spd: 6.8, pred: 38 },
+  },
+
+  CPU_SERVE_DELAY: 120,  // 2 seconds at 60fps
+};
+
+// =============================================================
+// SECTION 2 — GAME STATE
+// =============================================================
+const STATE = {
+  screen: 'menu',
+  difficulty: 'normal',
+  musicEnabled: true,
+  scores: { player: 0, cpu: 0 },
+  serving: 'player',
+  serveRight: { player: true, cpu: true },
+  rallyCount: 0,
+  currentSpeedCap: C.BALL_SPEED_CAP_BASE,
+  serveTimer: 0,
+  awaitingPlayerServe: false,  // true = player must click/tap to serve
+
+  ball: {
+    x: C.CENTER_X, y: C.NET_Y,
+    dx: 0, dy: 0, spin: 0,
+    speed: C.BALL_SPEED_INIT,
+    trail: [], inPlay: false,
+  },
+
+  player: {
+    x: C.CENTER_X, y: C.PLAYER_Y,
+    hitFlash: 0, isPower: false,
+    facingRight: true,
+  },
+
+  cpu: {
+    x: C.CENTER_X, y: C.CPU_Y,
+    hitFlash: 0,
+    targetX: C.CENTER_X,
+    missOffset: 0,
+    framesSince: 0,
+    facingRight: true,
+  },
+
+  scoreAnim: { on: false, text: '', alpha: 0, y: C.NET_Y },
+  lastWinner: null,
+  powerCharging: false,
+  powerLevel: 0,
+};
+
+// =============================================================
+// SECTION 3 — PHYSICS MODULE
+// =============================================================
+const Physics = {
+
+  launchServe(state) {
+    const b = state.ball;
+    const isPlayer = state.serving === 'player';
+    const serveRight = isPlayer ? state.serveRight.player : state.serveRight.cpu;
+    const targetX = serveRight ? C.CENTER_X - C.SERVE_BOX_X : C.CENTER_X + C.SERVE_BOX_X;
+    const targetY = isPlayer ? C.KITCHEN_TOP_Y - 20 : C.KITCHEN_BOT_Y + 20;
+    const angle   = Math.atan2(targetY - b.y, targetX - b.x);
+    b.dx = Math.cos(angle) * b.speed;
+    b.dy = Math.sin(angle) * b.speed;
+    b.spin = 0;
+    b.inPlay = true;
+    state.awaitingPlayerServe = false;
+  },
+
+  step(state) {
+    const b = state.ball;
+    if (!b.inPlay) return null;
+
+    b.trail.unshift({ x: b.x, y: b.y });
+    if (b.trail.length > C.TRAIL_LEN) b.trail.pop();
+
+    b.dx += b.spin * C.SPIN_FACTOR;
+    b.spin *= C.SPIN_DECAY;
+    b.dx *= C.BALL_DECEL;
+    b.dy *= C.BALL_DECEL;
+
+    b.x += b.dx;
+    b.y += b.dy;
+
+    if (b.x - C.BALL_R < C.COURT_LEFT) {
+      b.x = C.COURT_LEFT + C.BALL_R; b.dx = Math.abs(b.dx);
+      return { type: 'wall' };
+    }
+    if (b.x + C.BALL_R > C.COURT_RIGHT) {
+      b.x = C.COURT_RIGHT - C.BALL_R; b.dx = -Math.abs(b.dx);
+      return { type: 'wall' };
+    }
+    if (b.y - C.BALL_R < C.COURT_TOP) {
+      b.inPlay = false; return { type: 'score', winner: 'player' };
+    }
+    if (b.y + C.BALL_R > C.COURT_BOTTOM) {
+      b.inPlay = false; return { type: 'score', winner: 'cpu' };
+    }
+
+    const pHit = this._paddleHit(b, state.player, 'player', state);
+    if (pHit) return pHit;
+    const cHit = this._paddleHit(b, state.cpu, 'cpu', state);
+    if (cHit) return cHit;
+    return null;
+  },
+
+  _paddleHit(b, pad, who, state) {
+    const px = pad.x - C.PAD_W / 2, py = pad.y - C.PAD_H / 2;
+    if (b.x + C.BALL_R > px && b.x - C.BALL_R < px + C.PAD_W &&
+        b.y + C.BALL_R > py && b.y - C.BALL_R < py + C.PAD_H) {
+
+      b.dy = who === 'player' ? -Math.abs(b.dy) : Math.abs(b.dy);
+      const offset = (b.x - pad.x) / (C.PAD_W / 2);
+      b.spin = offset * 0.9;
+      b.dx += offset * 3.0;
+
+      const cap = (who === 'player' && pad.isPower) ? C.BALL_SPEED_MAX : state.currentSpeedCap;
+      const spd = Math.hypot(b.dx, b.dy);
+      if (spd > cap) { const s = cap / spd; b.dx *= s; b.dy *= s; }
+
+      const minDy = 5;
+      if (Math.abs(b.dy) < minDy) b.dy = who === 'player' ? -minDy : minDy;
+      b.y += b.dy * 0.5;
+      pad.hitFlash = 10;
+      return { type: 'hit', who };
+    }
+    return null;
+  },
+};
+
+// =============================================================
+// SECTION 4 — AI MODULE
+// =============================================================
+const AI = {
+
+  _scaledCfg(state) {
+    const base = C.AI[state.difficulty];
+    const factor = Math.min(1.5, 1 + Math.floor(state.rallyCount / 4) * 0.1);
+    return {
+      delay: Math.max(1, Math.round(base.delay / factor)),
+      miss:  Math.max(0.005, base.miss / factor),
+      spd:   Math.min(base.spd * factor, 8.5),
+      pred:  Math.round(base.pred * factor),
+    };
+  },
+
+  update(state) {
+    const cpu = state.cpu;
+    const b   = state.ball;
+    const cfg = this._scaledCfg(state);
+
+    cpu.framesSince++;
+    if (cpu.framesSince < cfg.delay) { this._move(cpu, cfg); return; }
+    cpu.framesSince = 0;
+
+    if (!b.inPlay) { this._move(cpu, cfg); return; }
+
+    let pred = this._predict(b, C.CPU_Y, cfg.pred);
+
+    if (Math.random() < cfg.miss) {
+      cpu.missOffset = (Math.random() - 0.5) * C.PAD_W * 2.8;
+    } else {
+      cpu.missOffset *= 0.88;
+    }
+
+    let bias = 0;
+    if (state.difficulty === 'hard' && Math.random() < 0.25) {
+      bias = state.player.x < C.CENTER_X ? 70 : -70;
+    }
+
+    cpu.targetX = Math.max(C.COURT_LEFT + C.PAD_W / 2,
+                   Math.min(C.COURT_RIGHT - C.PAD_W / 2,
+                     pred + cpu.missOffset + bias));
+    this._move(cpu, cfg);
+  },
+
+  _predict(b, targetY, maxF) {
+    let x = b.x, y = b.y, dx = b.dx, dy = b.dy;
+    for (let i = 0; i < maxF; i++) {
+      dy += C.GRAVITY; x += dx; y += dy;
+      if (x < C.COURT_LEFT)  { x = C.COURT_LEFT  * 2 - x; dx =  Math.abs(dx); }
+      if (x > C.COURT_RIGHT) { x = C.COURT_RIGHT * 2 - x; dx = -Math.abs(dx); }
+      if (y <= targetY) break;
+    }
+    return x;
+  },
+
+  _move(cpu, cfg) {
+    const diff = cpu.targetX - cpu.x;
+    if (Math.abs(diff) > 1) {
+      cpu.x += Math.sign(diff) * Math.min(Math.abs(diff), cfg.spd);
+      cpu.facingRight = diff > 0;  // track facing direction
+    }
+    cpu.x = Math.max(C.COURT_LEFT + C.PAD_W / 2,
+              Math.min(C.COURT_RIGHT - C.PAD_W / 2, cpu.x));
+  },
+};
+
+// =============================================================
+// SECTION 5 — INPUT MODULE
+// =============================================================
+const Input = {
+  keys: {},
+  mouseX: C.CENTER_X,
+  touchX: C.CENTER_X,
+  usingTouch: false,
+  _prevDir: 0,
+  _squeakCd: 0,
+  _dirChanges: 0,
+  _squeakThreshold: 2,
+
+  init(canvas) {
+    window.addEventListener('keydown', e => {
+      this.keys[e.code] = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (STATE.screen === 'menu')          { GameLoop.startGame(); return; }
+        if (STATE.screen === 'gameover')      { GameLoop.startGame(); return; }
+        if (STATE.screen === 'point')         { GameLoop.nextRally(); return; }
+        // Space also serves for player
+        if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
+          Physics.launchServe(STATE);
+        }
+      }
+      if (e.code === 'KeyS') STATE.powerCharging = true;
+    });
+    window.addEventListener('keyup', e => {
+      this.keys[e.code] = false;
+      if (e.code === 'KeyS') STATE.powerCharging = false;
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      const r = canvas.getBoundingClientRect();
+      this.mouseX = (e.clientX - r.left) * (C.W / r.width);
+    });
+
+    canvas.addEventListener('mousedown', e => {
+      if (STATE.screen === 'menu')     { GameLoop.startGame(); return; }
+      if (STATE.screen === 'gameover') { GameLoop.startGame(); return; }
+      if (STATE.screen === 'point')    { GameLoop.nextRally(); return; }
+      // Click to serve (only when awaiting player input)
+      if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
+        Physics.launchServe(STATE);
+        return;
+      }
+    });
+
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      this.usingTouch = true;
+      const r = canvas.getBoundingClientRect();
+      const t = e.touches[0];
+      this.touchX = (t.clientX - r.left) * (C.W / r.width);
+      const touchY = (t.clientY - r.top) * (C.H / r.height);
+
+      if (STATE.screen === 'menu')     { GameLoop.startGame(); return; }
+      if (STATE.screen === 'gameover') { GameLoop.startGame(); return; }
+      if (STATE.screen === 'point')    { GameLoop.nextRally(); return; }
+
+      // Power button (bottom-right region)
+      if (this.touchX > C.W - 90 && touchY > C.H - 90) {
+        STATE.powerCharging = true;
+        return;
+      }
+      // Tap to serve
+      if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
+        Physics.launchServe(STATE);
+        return;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect();
+      this.touchX = (e.touches[0].clientX - r.left) * (C.W / r.width);
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      STATE.powerCharging = false;
+    }, { passive: false });
+  },
+
+  updatePlayer(state) {
+    const p = state.player;
+    const prevX = p.x;
+
+    let targetX = this.usingTouch ? this.touchX : this.mouseX;
+    if (this.keys['ArrowLeft']  || this.keys['KeyA']) targetX -= C.PAD_SPEED;
+    if (this.keys['ArrowRight'] || this.keys['KeyD']) targetX += C.PAD_SPEED;
+
+    // Lock to service box when ball not in play
+    if (!state.ball.inPlay) {
+      const right = state.serveRight.player;
+      if (state.serving === 'player') {
+        const minX = right ? C.CENTER_X + C.PAD_W / 2 : C.COURT_LEFT + C.PAD_W / 2;
+        const maxX = right ? C.COURT_RIGHT - C.PAD_W / 2 : C.CENTER_X - C.PAD_W / 2;
+        p.x = Math.max(minX, Math.min(maxX, targetX));
+      } else {
+        // Receiver locked to diagonally opposite box
+        const cpuRight = state.serveRight.cpu;
+        const minX = cpuRight ? C.COURT_LEFT + C.PAD_W / 2 : C.CENTER_X + C.PAD_W / 2;
+        const maxX = cpuRight ? C.CENTER_X - C.PAD_W / 2 : C.COURT_RIGHT - C.PAD_W / 2;
+        p.x = Math.max(minX, Math.min(maxX, targetX));
+      }
+    } else {
+      p.x = Math.max(C.COURT_LEFT + C.PAD_W / 2, Math.min(C.COURT_RIGHT - C.PAD_W / 2, targetX));
+    }
+
+    // Facing direction (used for image flip)
+    const moved = p.x - prevX;
+    if (moved > 0.5)  p.facingRight = true;
+    if (moved < -0.5) p.facingRight = false;
+
+    // Sneaker squeak every 2–4 direction changes
+    if (this._squeakCd > 0) this._squeakCd--;
+    const dir = moved > 0.8 ? 1 : moved < -0.8 ? -1 : 0;
+    if (dir !== 0 && dir !== this._prevDir && this._squeakCd === 0) {
+      this._dirChanges++;
+      if (this._dirChanges >= this._squeakThreshold) {
+        Audio.squeak();
+        this._dirChanges = 0;
+        this._squeakThreshold = 2 + Math.floor(Math.random() * 3); // 2, 3, or 4
+        this._squeakCd = 18;
+      }
+    }
+    if (dir !== 0) this._prevDir = dir;
+
+    // Power shot
+    if (state.powerCharging) {
+      state.powerLevel = Math.min(1, state.powerLevel + 0.025);
+    } else {
+      state.powerLevel = Math.max(0, state.powerLevel - 0.04);
+    }
+    p.isPower = state.powerLevel > 0.15;
+  },
+};
+
+// =============================================================
+// SECTION 6 — AUDIO MODULE
+// =============================================================
+const Audio = {
+  ctx: null,
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  },
+
+  // Pickleball pop: noise burst at ~1100 Hz + fast frequency-sweep click
+  hit() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    const dur = 0.055;
+    const buf = this.ctx.createBuffer(1, Math.ceil(this.ctx.sampleRate * dur), this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buf;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 1.4;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0.55, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    noise.connect(bp); bp.connect(ng); ng.connect(this.ctx.destination);
+    noise.start(t); noise.stop(t + dur);
+
+    const click = this.ctx.createOscillator();
+    click.type = 'square';
+    click.frequency.setValueAtTime(1400, t);
+    click.frequency.exponentialRampToValueAtTime(350, t + 0.028);
+    const cg = this.ctx.createGain();
+    cg.gain.setValueAtTime(0.28, t);
+    cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.030);
+    click.connect(cg); cg.connect(this.ctx.destination);
+    click.start(t); click.stop(t + 0.032);
+  },
+
+  squeak() {
+    const el = document.getElementById('squeak-snd');
+    if (!el) return;
+    el.currentTime = 0;
+    el.volume = 0.5;
+    el.play().catch(() => {});
+  },
+
+  _beep({ freq, dur, type, vol }) {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const g   = this.ctx.createGain();
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    g.gain.setValueAtTime(vol, this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + dur);
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + dur);
+  },
+
+  wall()  { this._beep({ freq: 260, dur: 0.05, type: 'triangle', vol: 0.14 }); },
+  score() { this._beep({ freq: 700, dur: 0.28, type: 'sine',     vol: 0.32 }); },
+
+  win() {
+    if (!this.ctx) return;
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const t = this.ctx.currentTime + i * 0.18;
+      const osc = this.ctx.createOscillator();
+      const g   = this.ctx.createGain();
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.38, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      osc.start(t); osc.stop(t + 0.2);
+    });
+  },
+};
+
+// =============================================================
+// SECTION 7 — RENDERER MODULE
+// =============================================================
+const Renderer = {
+  ctx: null,
+  _playerImg: null,
+  _logoImg: null,
+
+  init(canvas) {
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    // Preload player image (same directory as index.html)
+    const img = new Image();
+    img.src = 'Player Model Design.PNG';
+    this._playerImg = img;
+    // Preload logo image for menu screen
+    const logo = new Image();
+    logo.src = 'isolate_the_pickle_pong_logo_inside_the (1).png';
+    this._logoImg = logo;
+  },
+
+  draw(state) {
+    const ctx = this.ctx;
+    if (state.screen === 'menu')     { this._menu(ctx);           return; }
+    if (state.screen === 'gameover') { this._gameover(ctx, state); return; }
+
+    this._court(ctx);
+    this._kitchen(ctx);
+    this._net(ctx);
+    this._serviceLines(ctx);
+    this._trail(ctx, state.ball);
+    this._ball(ctx, state.ball);
+    this._figure(ctx, state.player, true,  state.powerLevel);
+    this._figure(ctx, state.cpu,    false, 0);
+    this._hud(ctx, state);
+    this._scoreAnim(ctx, state.scoreAnim);
+
+    if (!state.ball.inPlay && state.screen === 'playing') this._serveReady(ctx, state);
+    if (state.screen === 'point') this._pointPause(ctx);
+    if (this._isTouch) this._pwrBtn(ctx, state.powerLevel);
+  },
+
+  get _isTouch() { return 'ontouchstart' in window; },
+
+  _court(ctx) {
+    ctx.fillStyle = '#0d1b2a';
+    ctx.fillRect(0, 0, C.W, C.H);
+    ctx.fillStyle = '#1e5e42';
+    ctx.fillRect(C.COURT_LEFT, C.COURT_TOP, C.COURT_RIGHT - C.COURT_LEFT, C.COURT_BOTTOM - C.COURT_TOP);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.strokeRect(C.COURT_LEFT, C.COURT_TOP, C.COURT_RIGHT - C.COURT_LEFT, C.COURT_BOTTOM - C.COURT_TOP);
+  },
+
+  _kitchen(ctx) {
+    ctx.fillStyle = 'rgba(255,220,0,0.10)';
+    ctx.fillRect(C.COURT_LEFT, C.COURT_TOP, C.COURT_RIGHT - C.COURT_LEFT, C.KITCHEN_TOP_Y - C.COURT_TOP);
+    ctx.fillRect(C.COURT_LEFT, C.KITCHEN_BOT_Y, C.COURT_RIGHT - C.COURT_LEFT, C.COURT_BOTTOM - C.KITCHEN_BOT_Y);
+    ctx.strokeStyle = 'rgba(255,220,0,0.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([7, 5]);
+    ctx.beginPath(); ctx.moveTo(C.COURT_LEFT, C.KITCHEN_TOP_Y); ctx.lineTo(C.COURT_RIGHT, C.KITCHEN_TOP_Y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(C.COURT_LEFT, C.KITCHEN_BOT_Y); ctx.lineTo(C.COURT_RIGHT, C.KITCHEN_BOT_Y); ctx.stroke();
+    ctx.setLineDash([]);
+  },
+
+  _net(ctx) {
+    const x = C.COURT_LEFT, w = C.COURT_RIGHT - C.COURT_LEFT;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(x, C.NET_Y - C.NET_H / 2 + 3, w, C.NET_H + 1);
+    ctx.fillStyle = '#ddeeff';
+    ctx.fillRect(x, C.NET_Y - C.NET_H / 2, w, C.NET_H);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(C.CENTER_X - 2, C.NET_Y - C.NET_H / 2, 4, C.NET_H);
+  },
+
+  _serviceLines(ctx) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([5, 7]);
+    ctx.beginPath(); ctx.moveTo(C.CENTER_X, C.COURT_TOP);     ctx.lineTo(C.CENTER_X, C.KITCHEN_TOP_Y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(C.CENTER_X, C.KITCHEN_BOT_Y); ctx.lineTo(C.CENTER_X, C.COURT_BOTTOM);  ctx.stroke();
+    ctx.setLineDash([]);
+  },
+
+  _trail(ctx, b) {
+    b.trail.forEach((p, i) => {
+      const a = (1 - i / C.TRAIL_LEN) * 0.45;
+      const r = C.BALL_R * (1 - i / C.TRAIL_LEN * 0.55);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,210,50,${a})`; ctx.fill();
+    });
+  },
+
+  _ball(ctx, b) {
+    const g = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, C.BALL_R * 2.5);
+    g.addColorStop(0, 'rgba(255,240,80,0.55)');
+    g.addColorStop(1, 'rgba(255,240,80,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, C.BALL_R * 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x, b.y, C.BALL_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0e840'; ctx.fill();
+    ctx.strokeStyle = '#b0a800'; ctx.lineWidth = 1; ctx.stroke();
+  },
+
+  // Draw player figure using the reference image (multiply blend to drop white bg)
+  // isPlayer: drawn right-side up facing net (upward); CPU: flipped vertically to face down
+  // facingRight controls horizontal flip so the paddle is always on the active side
+  _figure(ctx, pad, isPlayer, power) {
+    const img = this._playerImg;
+    const px = pad.x, py = pad.y;
+    const W = 68, H = 86;  // display size
+
+    // Hit flash: draw a white pulse before the image
+    if (pad.hitFlash > 0) {
+      pad.hitFlash--;
+      ctx.save();
+      ctx.globalAlpha = pad.hitFlash / 10 * 0.55;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(px, py - H / 3, W / 2 + 4, H / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    if (!img || !img.complete || !img.naturalWidth) {
+      // Fallback: draw a simple colored rectangle while image loads
+      ctx.fillStyle = isPlayer ? '#3ab4f2' : '#f25a3a';
+      ctx.fillRect(px - W / 2, py - H + 12, W, H);
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    // CPU at top faces DOWN toward player — flip vertically
+    if (!isPlayer) ctx.scale(1, -1);
+
+    // Flip horizontally based on movement direction
+    if (!pad.facingRight) ctx.scale(-1, 1);
+
+    // Draw: top of figure at (py - H + offset), bottom at (py + small offset)
+    // After translate, origin is at (px, py).
+    // For player (no vertical flip): draw above the hitbox — image top at y=-(H-12)
+    ctx.drawImage(img, -W / 2, -(H - 12), W, H);
+
+    ctx.restore();
+
+    // Power glow overlay (drawn separately, above the image)
+    if (isPlayer && power > 0.15) {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 70);
+      ctx.save();
+      ctx.globalAlpha = pulse * power * 0.22;
+      ctx.fillStyle = '#ff5050';
+      ctx.beginPath();
+      ctx.ellipse(px + (pad.facingRight ? 18 : -18), py - H / 2 + 12, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  _hud(ctx, state) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 24px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`CPU  ${state.scores.cpu} : ${state.scores.player}  YOU`, C.CENTER_X, 22);
+    ctx.font = '11px monospace'; ctx.fillStyle = '#88ffaa';
+    ctx.fillText(state.serving === 'player' ? '▼ YOUR SERVE' : '▲ CPU SERVE', C.CENTER_X, C.H - 6);
+
+    if (state.powerLevel > 0) {
+      const bw = 120, bh = 8, bx = 12, by = C.H - 20;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(bx, by, bw, bh);
+      const r = state.powerLevel;
+      ctx.fillStyle = r > 0.7 ? '#ff4040' : r > 0.4 ? '#ff9900' : '#f0e840';
+      ctx.fillRect(bx, by, Math.round(bw * r), bh);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+    }
+  },
+
+  _serveReady(ctx, state) {
+    const b = state.ball;
+    // Pulsing ring around the ball
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 180);
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, C.BALL_R + 5 + pulse * 4, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,100,${0.55 * pulse})`;
+    ctx.lineWidth = 2; ctx.stroke();
+
+    // "CLICK TO SERVE" hint for player
+    if (state.awaitingPlayerServe) {
+      ctx.textAlign = 'center'; ctx.font = 'bold 13px monospace';
+      ctx.fillStyle = 'rgba(255,255,180,0.85)';
+      ctx.fillText('CLICK / TAP TO SERVE', C.CENTER_X, C.PLAYER_Y - 90);
+    }
+  },
+
+  _scoreAnim(ctx, anim) {
+    if (!anim.on) return;
+    ctx.save();
+    ctx.globalAlpha = anim.alpha;
+    ctx.textAlign = 'center'; ctx.font = 'bold 44px monospace'; ctx.fillStyle = '#ffff44';
+    ctx.fillText(anim.text, C.CENTER_X, anim.y);
+    ctx.restore();
+    anim.y -= 1.8; anim.alpha -= 0.022;
+    if (anim.alpha <= 0) anim.on = false;
+  },
+
+  _pointPause(ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, C.H / 2 - 28, C.W, 56);
+    ctx.textAlign = 'center'; ctx.font = '16px monospace'; ctx.fillStyle = '#cccccc';
+    ctx.fillText('Tap / Space to continue', C.CENTER_X, C.H / 2 + 6);
+  },
+
+  _pwrBtn(ctx, power) {
+    const bx = C.W - 52, by = C.H - 52, br = 34;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fillStyle = power > 0.15 ? 'rgba(255,60,60,0.88)' : 'rgba(180,60,60,0.45)';
+    ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = 'bold 11px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText('PWR', bx, by + 4);
+  },
+
+  _menu(ctx) {
+    // Background: dark forest green from logo palette
+    ctx.fillStyle = '#1a5c2a'; ctx.fillRect(0, 0, C.W, C.H);
+
+    const leftCX = Math.floor(C.W / 3); // ~327 — center of left two-thirds
+    ctx.textAlign = 'center';
+
+    // Logo image replacing "PICKLE PONG" text
+    if (this._logoImg && this._logoImg.complete && this._logoImg.naturalWidth > 0) {
+      const logoW = 280, logoH = 110;
+      const logoX = leftCX - logoW / 2;
+      const logoY = 30;
+      // Cover-fit crop: fill rectangle without distortion
+      const srcAR = this._logoImg.naturalWidth / this._logoImg.naturalHeight;
+      const dstAR = logoW / logoH;
+      let sx, sy, sw, sh;
+      if (srcAR > dstAR) {
+        sh = this._logoImg.naturalHeight; sw = sh * dstAR;
+        sx = (this._logoImg.naturalWidth - sw) / 2; sy = 0;
+      } else {
+        sw = this._logoImg.naturalWidth; sh = sw / dstAR;
+        sx = 0; sy = (this._logoImg.naturalHeight - sh) / 2;
+      }
+      ctx.drawImage(this._logoImg, sx, sy, sw, sh, logoX, logoY, logoW, logoH);
+    } else {
+      ctx.font = 'bold 52px monospace'; ctx.fillStyle = '#f0e840';
+      ctx.fillText('PICKLE PONG', leftCX, 100);
+    }
+
+    ctx.font = '20px monospace'; ctx.fillStyle = '#88ffaa';
+    ctx.fillText('First to 11 — Win by 2 — Rally Scoring', leftCX, 175);
+    ctx.font = '15px monospace'; ctx.fillStyle = '#aaccaa';
+    ctx.fillText('Difficulty: click/tap below', leftCX, 215);
+
+    const diffs = [
+      { key: 'easy',   label: 'EASY',   x: leftCX - 130 },
+      { key: 'normal', label: 'NORMAL', x: leftCX },
+      { key: 'hard',   label: 'HARD',   x: leftCX + 130 },
+    ];
+    diffs.forEach(d => {
+      const active = STATE.difficulty === d.key;
+      ctx.fillStyle = active ? '#f0e840' : '#0d3a18';
+      ctx.fillRect(d.x - 55, 233, 110, 36);
+      ctx.fillStyle = active ? '#000000' : '#ffffff';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(d.label, d.x, 257);
+    });
+
+    ctx.font = '14px monospace'; ctx.fillStyle = '#7799bb';
+    ctx.fillText('Move: Mouse / Touch / A D ←→   |   Power: Hold S / PWR button', leftCX, 325);
+    ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText('CLICK or TAP to Start', leftCX, 400);
+    ctx.font = '12px monospace'; ctx.fillStyle = 'rgba(255,220,0,0.7)';
+    ctx.fillText('Yellow zones = Kitchen (NVZ)', leftCX, 450);
+
+    // Player figure — larger, shifted left toward copy
+    if (this._playerImg && this._playerImg.complete && this._playerImg.naturalWidth > 0) {
+      const pw = this._playerImg.naturalWidth;
+      const ph = this._playerImg.naturalHeight;
+      const scale = (C.H * 1.5) / ph;   // 50% taller than canvas (clips top/bottom)
+      const scaledW = pw * scale;
+      const scaledH = ph * scale;
+      const imgX = Math.floor(C.W * 0.5) - scaledW * 0.1; // left edge ~halfway across canvas
+      const imgY = (C.H - scaledH) / 2;                   // vertically centred
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.drawImage(this._playerImg, imgX, imgY, scaledW, scaledH);
+      ctx.restore();
+    }
+
+    // Music toggle — top-right corner
+    const on = STATE.musicEnabled;
+    const tx = C.W - 80, ty = 18;
+    ctx.fillStyle = on ? 'rgba(80,200,120,0.25)' : 'rgba(120,120,120,0.18)';
+    ctx.fillRect(tx - 48, ty - 14, 96, 24);
+    ctx.strokeStyle = on ? '#50c878' : '#666'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(tx - 48, ty - 14, 96, 24);
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = on ? '#50c878' : '#888888';
+    ctx.textAlign = 'center';
+    ctx.fillText(on ? '♪ MUSIC ON' : '♪ MUSIC OFF', tx, ty + 4);
+  },
+
+  _gameover(ctx, state) {
+    const won = state.scores.player > state.scores.cpu;
+    ctx.fillStyle = '#0d1b2a'; ctx.fillRect(0, 0, C.W, C.H);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 70px monospace';
+    ctx.fillStyle = won ? '#f0e840' : '#f25a3a';
+    ctx.fillText(won ? 'YOU WIN!' : 'CPU WINS', C.W / 2, 190);
+    ctx.font = '36px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${state.scores.cpu} — ${state.scores.player}`, C.W / 2, 270);
+    ctx.font = '16px monospace'; ctx.fillStyle = '#aaaaaa';
+    ctx.fillText('Click / Tap / Space to Play Again', C.W / 2, 380);
+  },
+};
+
+// =============================================================
+// SECTION 8 — GAME LOOP
+// =============================================================
+const GameLoop = {
+  lastTs: 0,
+
+  init() {
+    const canvas = document.getElementById('c');
+    canvas.width  = C.W;
+    canvas.height = C.H;
+    BGM.init();
+    Renderer.init(canvas);
+    Input.init(canvas);
+    this._menuClickZones(canvas);
+    requestAnimationFrame(ts => this._frame(ts));
+  },
+
+  _menuClickZones(canvas) {
+    const handler = e => {
+      if (STATE.screen !== 'menu') return;
+      const r = canvas.getBoundingClientRect();
+      const cx = e.touches
+        ? (e.touches[0].clientX - r.left) * (C.W / r.width)
+        : (e.clientX - r.left) * (C.W / r.width);
+      const cy = e.touches
+        ? (e.touches[0].clientY - r.top) * (C.H / r.height)
+        : (e.clientY - r.top) * (C.H / r.height);
+      // Music toggle hit zone (top-right)
+      if (cx >= C.W - 128 && cx <= C.W - 32 && cy >= 4 && cy <= 28) {
+        STATE.musicEnabled = !STATE.musicEnabled;
+        STATE.musicEnabled ? BGM.play() : BGM.stop();
+        return;
+      }
+      if (cy >= 233 && cy <= 269) {
+        if (cx >= C.W/3 - 185 && cx < C.W/3 - 75)  { STATE.difficulty = 'easy';   return; }
+        if (cx >= C.W/3 - 55  && cx < C.W/3 + 55)  { STATE.difficulty = 'normal'; return; }
+        if (cx >= C.W/3 + 75  && cx < C.W/3 + 185) { STATE.difficulty = 'hard';   return; }
+      }
+    };
+    canvas.addEventListener('mousedown', handler);
+    canvas.addEventListener('touchstart', handler, { passive: false });
+  },
+
+  startGame() {
+    BGM.stop();
+    Audio.init();
+    STATE.screen     = 'playing';
+    STATE.scores     = { player: 0, cpu: 0 };
+    STATE.serving    = Math.random() < 0.5 ? 'player' : 'cpu';
+    STATE.serveRight = { player: true, cpu: true };
+    STATE.rallyCount = 0;
+    STATE.ball.speed  = C.BALL_SPEED_INIT;
+    STATE.ball.inPlay = false;
+    STATE.powerLevel  = 0;
+    STATE.lastWinner  = null;
+    this.nextRally();
+  },
+
+  nextRally() {
+    STATE.screen = 'playing';
+    STATE.rallyCount++;
+    STATE.ball.speed = Math.min(C.BALL_SPEED_INIT + STATE.rallyCount * 0.33, C.BALL_SPEED_CAP_BASE);
+    STATE.currentSpeedCap = STATE.ball.speed + 2;
+
+    const isPlayer   = STATE.serving === 'player';
+    const serveRight = isPlayer ? STATE.serveRight.player : STATE.serveRight.cpu;
+    const serverX    = serveRight ? C.CENTER_X + C.SERVE_BOX_X : C.CENTER_X - C.SERVE_BOX_X;
+    const receiverX  = serveRight ? C.CENTER_X - C.SERVE_BOX_X : C.CENTER_X + C.SERVE_BOX_X;
+
+    if (isPlayer) {
+      STATE.player.x    = serverX;
+      STATE.cpu.x       = receiverX;
+      STATE.cpu.targetX = receiverX;
+    } else {
+      STATE.cpu.x       = serverX;
+      STATE.cpu.targetX = serverX;
+      STATE.player.x    = receiverX;
+    }
+
+    // Ball sticks to server's position (follows them until served)
+    STATE.ball.x      = serverX;
+    STATE.ball.y      = isPlayer ? C.PLAYER_Y - 18 : C.CPU_Y + 18;
+    STATE.ball.dx     = 0;
+    STATE.ball.dy     = 0;
+    STATE.ball.spin   = 0;
+    STATE.ball.trail  = [];
+    STATE.ball.inPlay = false;
+
+    if (isPlayer) {
+      // Player serves manually on click/tap
+      STATE.awaitingPlayerServe = true;
+      STATE.serveTimer = 0;
+    } else {
+      // CPU auto-serves after 2-second delay
+      STATE.awaitingPlayerServe = false;
+      STATE.serveTimer = C.CPU_SERVE_DELAY;
+    }
+  },
+
+  _awardPoint(winner) {
+    Audio.score();
+    STATE.scores[winner]++;
+    STATE.lastWinner  = winner;
+    STATE.ball.inPlay = false;
+
+    STATE.scoreAnim = {
+      on: true,
+      text: winner === 'player' ? '+1  YOU' : 'CPU  +1',
+      alpha: 1.0,
+      y: C.NET_Y - 10,
+    };
+
+    const ps = STATE.scores.player, cs = STATE.scores.cpu;
+    if (Math.max(ps, cs) >= C.WIN_SCORE && Math.abs(ps - cs) >= C.WIN_BY) {
+      setTimeout(() => { STATE.screen = 'gameover'; Audio.win(); BGM.play(); }, 1400);
+      return;
+    }
+
+    const prevServer = STATE.serving;
+    if (winner === prevServer) {
+      STATE.serveRight[winner] = !STATE.serveRight[winner];
+    } else {
+      STATE.serveRight[winner] = true;
+    }
+    STATE.serving = winner;
+    STATE.screen  = 'point';
+  },
+
+  _handleEvent(ev) {
+    if (!ev) return;
+    if (ev.type === 'wall')  { Audio.wall(); return; }
+    if (ev.type === 'hit')   { Audio.hit();  return; }
+    if (ev.type === 'score') { this._awardPoint(ev.winner); return; }
+  },
+
+  _frame(ts) {
+    this.lastTs = ts;
+
+    if (STATE.screen === 'playing') {
+      Input.updatePlayer(STATE);
+      AI.update(STATE);
+
+      if (!STATE.ball.inPlay) {
+        // Ball sticks to the server until served
+        if (STATE.serving === 'player') {
+          STATE.ball.x = STATE.player.x;
+          STATE.ball.y = C.PLAYER_Y - 18;
+        } else {
+          STATE.ball.x = STATE.cpu.x;
+          STATE.ball.y = C.CPU_Y + 18;
+        }
+        // CPU countdown
+        if (!STATE.awaitingPlayerServe) {
+          if (STATE.serveTimer > 0) {
+            STATE.serveTimer--;
+          } else {
+            Physics.launchServe(STATE);
+          }
+        }
+      } else {
+        const ev = Physics.step(STATE);
+        this._handleEvent(ev);
+      }
+    }
+
+    Renderer.draw(STATE);
+    requestAnimationFrame(t => this._frame(t));
+  },
+};
+
+// Boot
+window.addEventListener('load', () => GameLoop.init());
+</script>
+</body>
+</html>
