@@ -154,9 +154,13 @@
       flex-direction: column;
       justify-content: flex-end;
       border-right: 1px solid var(--border);
-      background: rgba(255,255,255,0.78);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
+    }
+    @media (min-width: 681px) {
+      .hero-left {
+        background: rgba(255,255,255,0.78);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+      }
     }
 
     /* Colored vertical nav columns */
