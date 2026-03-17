@@ -106,6 +106,7 @@ const STATE = {
   serveRight: { player: true, cpu: true },
   rallyCount: 0,
   currentSpeedCap: C.BALL_SPEED_CAP_BASE,
+  pointTimer: 0,  // frames elapsed since ball was put in play (for parabolic ramp)
   serveTimer: 0,
   awaitingPlayerServe: false,  // true = player must click/tap to serve
 
@@ -153,6 +154,7 @@ const Physics = {
     b.dy = Math.sin(angle) * b.speed;
     b.spin = 0;
     b.inPlay = true;
+    state.pointTimer = 0;
     state.awaitingPlayerServe = false;
   },
 
@@ -167,6 +169,14 @@ const Physics = {
     b.spin *= C.SPIN_DECAY;
     b.dx *= C.BALL_DECEL;
     b.dy *= C.BALL_DECEL;
+
+    // Parabolic speed ramp: kicks in at 10 s, ridiculous by 30 s
+    const _tau = Math.max(0, state.pointTimer / 60 - 10);
+    if (_tau > 0) {
+      const _target = state.currentSpeedCap + 0.08 * _tau * _tau;
+      const _spd = Math.hypot(b.dx, b.dy);
+      if (_spd > 0 && _spd < _target) { const _s = _target / _spd; b.dx *= _s; b.dy *= _s; }
+    }
 
     b.x += b.dx;
     b.y += b.dy;
@@ -785,7 +795,7 @@ const Renderer = {
       const scale = (C.H * 1.5) / ph;   // 50% taller than canvas (clips top/bottom)
       const scaledW = pw * scale;
       const scaledH = ph * scale;
-      const imgX = Math.floor(C.W * 0.5) - scaledW * 0.1; // left edge ~halfway across canvas
+      const imgX = Math.floor(C.W * 0.56);                  // left edge clear of copy
       const imgY = (C.H - scaledH) / 2;                   // vertically centred
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
@@ -980,6 +990,7 @@ const GameLoop = {
           }
         }
       } else {
+        STATE.pointTimer++;
         const ev = Physics.step(STATE);
         this._handleEvent(ev);
       }
