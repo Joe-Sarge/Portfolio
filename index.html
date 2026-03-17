@@ -102,6 +102,7 @@
       grid-template-columns: 1fr 1fr clamp(38px, 4.5vw, 56px) clamp(38px, 4.5vw, 56px) clamp(38px, 4.5vw, 56px);
       min-height: calc(100vh - var(--nav-h));
       align-items: stretch;
+      background: url('Reference Images/New Hero.png') 85% center / cover no-repeat;
     }
 
     @media (max-width: 940px) {
@@ -142,6 +143,9 @@
       flex-direction: column;
       justify-content: flex-end;
       border-right: 1px solid var(--border);
+      background: rgba(255,255,255,0.78);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
 
     /* Colored vertical nav columns */
@@ -558,9 +562,7 @@
           retail collabs. I build programs that move audiences and drive real results.
         </p>
       </div>
-      <div class="hero-photo">
-        <img src="Reference Images/Joe Sargent Headshot 26.JPG" alt="Joe Sargent">
-      </div>
+      <div class="hero-photo"></div>
       <a id="vnav-about"   class="hero-nav-item hero-nav-item--about"   onclick="showPage('about',   document.getElementById('tab-about'));   syncVnav('about')"><span class="num">01</span>About</a>
       <a id="vnav-work"    class="hero-nav-item hero-nav-item--work"    onclick="showPage('work',    document.getElementById('tab-work'));    syncVnav('work')"><span class="num">02</span>Work</a>
       <a id="vnav-contact" class="hero-nav-item hero-nav-item--contact" onclick="showPage('contact', document.getElementById('tab-contact')); syncVnav('contact')"><span class="num">03</span>Contact</a>
@@ -601,13 +603,13 @@
         </div>
         <div class="about-imgs">
           <div class="aimg">
-            <img src="Reference Images/IMG_2466_c.JPEG" alt="Sports Innovation Forum panel discussion">
+            <img src="Reference Images/Stage Top.png" alt="Joe Sargent on stage">
           </div>
           <div class="aimg">
-            <img src="Reference Images/IMG_7553_c.JPEG" alt="Joe Sargent at Sports Innovation Forum" style="object-position: center 30%;">
+            <img src="Reference Images/Panel Pic 2.png" alt="Joe Sargent panel discussion">
           </div>
           <div class="aimg">
-            <img src="Reference Images/Morehouse_c.JPEG" alt="Joe Sargent speaking at Morehouse" style="object-position: center 15%;">
+            <img src="Reference Images/Stage 1.png" alt="Joe Sargent speaking on stage">
           </div>
         </div>
       </div>
@@ -621,6 +623,9 @@
   <!-- WORK -->
   <div id="page-work" class="page">
     <div class="work-wrap">
+      <div style="text-align:center; margin-bottom:2.5rem;">
+        <img src="Reference Images/Work Infographic.png" alt="Work overview" style="max-width:100%; border-radius:var(--r); display:block; margin:0 auto;">
+      </div>
       <div class="work-head">
         <p class="eyebrow" style="margin:0">Selected Work</p>
         <div class="filter-row">
