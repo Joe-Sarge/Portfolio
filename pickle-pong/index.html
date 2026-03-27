@@ -97,18 +97,22 @@ const C = {
 // =============================================================
 // SECTION 2 — GAME STATE
 // =============================================================
+// Load saved prefs before initializing state
+const _saved = (() => { try { return JSON.parse(localStorage.getItem('ppPrefs') || '{}'); } catch { return {}; } })();
+
 const STATE = {
   screen: 'menu',
-  difficulty: 'normal',
-  musicEnabled: true,
+  difficulty: _saved.difficulty || 'normal',
+  musicEnabled: _saved.musicEnabled !== undefined ? _saved.musicEnabled : true,
   scores: { player: 0, cpu: 0 },
   serving: 'player',
   serveRight: { player: true, cpu: true },
   rallyCount: 0,
   currentSpeedCap: C.BALL_SPEED_CAP_BASE,
-  pointTimer: 0,  // frames elapsed since ball was put in play (for parabolic ramp)
+  pointTimer: 0,  // ticks elapsed since ball was put in play (for parabolic ramp)
   serveTimer: 0,
   awaitingPlayerServe: false,  // true = player must click/tap to serve
+  doubleBounceCount: 0,        // counts hits after serve; power locked until >= 2
 
   ball: {
     x: C.CENTER_X, y: C.NET_Y,
@@ -156,6 +160,7 @@ const Physics = {
     b.inPlay = true;
     state.pointTimer = 0;
     state.awaitingPlayerServe = false;
+    state.doubleBounceCount = 0;  // reset — power locked until 2 hits land
   },
 
   step(state) {
@@ -213,7 +218,9 @@ const Physics = {
       b.spin = offset * 0.9;
       b.dx += offset * 3.0;
 
-      const cap = (who === 'player' && pad.isPower) ? C.BALL_SPEED_MAX : state.currentSpeedCap;
+      // Double-bounce rule: power shot locked for the first 2 hits after every serve
+      const powerAllowed = who === 'player' && pad.isPower && state.doubleBounceCount >= 2;
+      const cap = powerAllowed ? C.BALL_SPEED_MAX : state.currentSpeedCap;
       const spd = Math.hypot(b.dx, b.dy);
       if (spd > cap) { const s = cap / spd; b.dx *= s; b.dy *= s; }
 
@@ -221,7 +228,8 @@ const Physics = {
       if (Math.abs(b.dy) < minDy) b.dy = who === 'player' ? -minDy : minDy;
       b.y += b.dy * 0.5;
       pad.hitFlash = 10;
-      return { type: 'hit', who };
+      state.doubleBounceCount++;
+      return { type: 'hit', who, isPower: powerAllowed };
     }
     return null;
   },
@@ -311,11 +319,16 @@ const Input = {
   init(canvas) {
     window.addEventListener('keydown', e => {
       this.keys[e.code] = true;
+      if (e.code === 'Escape') {
+        if (STATE.screen === 'playing') { STATE.screen = 'paused'; return; }
+        if (STATE.screen === 'paused')  { STATE.screen = 'playing'; return; }
+      }
       if (e.code === 'Space') {
         e.preventDefault();
         if (STATE.screen === 'menu')          { GameLoop.startGame(); return; }
         if (STATE.screen === 'gameover')      { GameLoop.startGame(); return; }
         if (STATE.screen === 'point')         { GameLoop.nextRally(); return; }
+        if (STATE.screen === 'paused')        { STATE.screen = 'playing'; return; }
         // Space also serves for player
         if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
           Physics.launchServe(STATE);
@@ -440,48 +453,70 @@ const Input = {
 // =============================================================
 const Audio = {
   ctx: null,
+  master: null,  // master gain node — all sounds route through this
 
   init() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.85;
+    this.master.connect(this.ctx.destination);
   },
 
-  // Pickleball pop: noise burst at ~1100 Hz + fast frequency-sweep click
+  // Normal pickleball pop: sharp bandpass noise burst + frequency-sweep click
   hit() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
+    this._noiseHit(t, 1100, 1.4, 0.055, 0.50, 1400, 350, 0.25);
+  },
 
-    const dur = 0.055;
-    const buf = this.ctx.createBuffer(1, Math.ceil(this.ctx.sampleRate * dur), this.ctx.sampleRate);
+  // Power shot: lower, heavier thwack
+  powerHit() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this._noiseHit(t, 650, 2.2, 0.085, 0.75, 900, 180, 0.40);
+    // Extra sub-bass thump
+    const sub = this.ctx.createOscillator();
+    const sg = this.ctx.createGain();
+    sub.connect(sg); sg.connect(this.master);
+    sub.type = 'sine'; sub.frequency.setValueAtTime(90, t);
+    sub.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+    sg.gain.setValueAtTime(0.30, t);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    sub.start(t); sub.stop(t + 0.13);
+  },
+
+  _noiseHit(t, bpFreq, bpQ, noiseDur, noiseVol, clickFreqHi, clickFreqLo, clickVol) {
+    const buf = this.ctx.createBuffer(1, Math.ceil(this.ctx.sampleRate * noiseDur), this.ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-
     const noise = this.ctx.createBufferSource();
     noise.buffer = buf;
     const bp = this.ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 1.4;
+    bp.type = 'bandpass'; bp.frequency.value = bpFreq; bp.Q.value = bpQ;
     const ng = this.ctx.createGain();
-    ng.gain.setValueAtTime(0.55, t);
-    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    noise.connect(bp); bp.connect(ng); ng.connect(this.ctx.destination);
-    noise.start(t); noise.stop(t + dur);
+    ng.gain.setValueAtTime(noiseVol, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + noiseDur);
+    noise.connect(bp); bp.connect(ng); ng.connect(this.master);
+    noise.start(t); noise.stop(t + noiseDur);
 
+    const clickDur = 0.032;
     const click = this.ctx.createOscillator();
     click.type = 'square';
-    click.frequency.setValueAtTime(1400, t);
-    click.frequency.exponentialRampToValueAtTime(350, t + 0.028);
+    click.frequency.setValueAtTime(clickFreqHi, t);
+    click.frequency.exponentialRampToValueAtTime(clickFreqLo, t + clickDur * 0.85);
     const cg = this.ctx.createGain();
-    cg.gain.setValueAtTime(0.28, t);
-    cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.030);
-    click.connect(cg); cg.connect(this.ctx.destination);
-    click.start(t); click.stop(t + 0.032);
+    cg.gain.setValueAtTime(clickVol, t);
+    cg.gain.exponentialRampToValueAtTime(0.0001, t + clickDur);
+    click.connect(cg); cg.connect(this.master);
+    click.start(t); click.stop(t + clickDur + 0.002);
   },
 
   squeak() {
     const el = document.getElementById('squeak-snd');
     if (!el) return;
     el.currentTime = 0;
-    el.volume = 0.5;
+    el.volume = 0.45;
     el.play().catch(() => {});
   },
 
@@ -489,7 +524,7 @@ const Audio = {
     if (!this.ctx) return;
     const osc = this.ctx.createOscillator();
     const g   = this.ctx.createGain();
-    osc.connect(g); g.connect(this.ctx.destination);
+    osc.connect(g); g.connect(this.master);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
     g.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -498,8 +533,23 @@ const Audio = {
     osc.stop(this.ctx.currentTime + dur);
   },
 
-  wall()  { this._beep({ freq: 260, dur: 0.05, type: 'triangle', vol: 0.14 }); },
-  score() { this._beep({ freq: 700, dur: 0.28, type: 'sine',     vol: 0.32 }); },
+  // Crisper wall bounce: short high-pitched snap
+  wall() { this._beep({ freq: 320, dur: 0.04, type: 'triangle', vol: 0.18 }); },
+
+  // Score: two-tone rising flourish
+  score() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    [[600, 0], [900, 0.10]].forEach(([freq, delay]) => {
+      const osc = this.ctx.createOscillator();
+      const g   = this.ctx.createGain();
+      osc.connect(g); g.connect(this.master);
+      osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t + delay);
+      g.gain.setValueAtTime(0.30, t + delay);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.22);
+      osc.start(t + delay); osc.stop(t + delay + 0.24);
+    });
+  },
 
   win() {
     if (!this.ctx) return;
@@ -507,7 +557,7 @@ const Audio = {
       const t = this.ctx.currentTime + i * 0.18;
       const osc = this.ctx.createOscillator();
       const g   = this.ctx.createGain();
-      osc.connect(g); g.connect(this.ctx.destination);
+      osc.connect(g); g.connect(this.master);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, t);
       g.gain.setValueAtTime(0.38, t);
@@ -554,7 +604,8 @@ const Renderer = {
     this._scoreAnim(ctx, state.scoreAnim);
 
     if (!state.ball.inPlay && state.screen === 'playing') this._serveReady(ctx, state);
-    if (state.screen === 'point') this._pointPause(ctx);
+    if (state.screen === 'point')  this._pointPause(ctx);
+    if (state.screen === 'paused') this._pauseOverlay(ctx);
     if (this._isTouch) this._pwrBtn(ctx, state.powerLevel);
   },
 
@@ -676,8 +727,30 @@ const Renderer = {
     ctx.textAlign = 'center';
     ctx.font = 'bold 24px monospace'; ctx.fillStyle = '#ffffff';
     ctx.fillText(`CPU  ${state.scores.cpu} : ${state.scores.player}  YOU`, C.CENTER_X, 22);
+
+    // Deuce / match point indicator
+    const ps = state.scores.player, cs = state.scores.cpu;
+    const atDeuce = ps >= C.WIN_SCORE - 1 && cs >= C.WIN_SCORE - 1;
+    if (atDeuce) {
+      let label, color;
+      if (ps === cs) {
+        label = 'DEUCE'; color = '#ffdd44';
+      } else {
+        const leading = ps > cs ? 'YOU' : 'CPU';
+        label = `MATCH PT — ${leading}`; color = ps > cs ? '#44ff88' : '#ff6644';
+      }
+      ctx.font = 'bold 13px monospace'; ctx.fillStyle = color;
+      ctx.fillText(label, C.CENTER_X, 38);
+    }
+
     ctx.font = '11px monospace'; ctx.fillStyle = '#88ffaa';
     ctx.fillText(state.serving === 'player' ? '▼ YOUR SERVE' : '▲ CPU SERVE', C.CENTER_X, C.H - 6);
+
+    // Double-bounce lock indicator (first 2 hits after serve)
+    if (state.ball.inPlay && state.doubleBounceCount < 2) {
+      ctx.font = '10px monospace'; ctx.fillStyle = 'rgba(255,200,80,0.75)';
+      ctx.fillText('NO POWER — DOUBLE BOUNCE', C.CENTER_X, C.H - 18);
+    }
 
     if (state.powerLevel > 0) {
       const bw = 120, bh = 8, bx = 12, by = C.H - 20;
@@ -722,6 +795,16 @@ const Renderer = {
     ctx.fillRect(0, C.H / 2 - 28, C.W, 56);
     ctx.textAlign = 'center'; ctx.font = '16px monospace'; ctx.fillStyle = '#cccccc';
     ctx.fillText('Tap / Space to continue', C.CENTER_X, C.H / 2 + 6);
+  },
+
+  _pauseOverlay(ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.60)';
+    ctx.fillRect(0, 0, C.W, C.H);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 48px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText('PAUSED', C.CENTER_X, C.H / 2 - 20);
+    ctx.font = '16px monospace'; ctx.fillStyle = '#aaaaaa';
+    ctx.fillText('Esc or Space to resume', C.CENTER_X, C.H / 2 + 22);
   },
 
   _pwrBtn(ctx, power) {
@@ -834,7 +917,9 @@ const Renderer = {
 // SECTION 8 — GAME LOOP
 // =============================================================
 const GameLoop = {
-  lastTs: 0,
+  _lastTs: 0,
+  _accum: 0,
+  TICK: 1000 / 60,  // fixed physics timestep — 16.667ms regardless of display Hz
 
   init() {
     const canvas = document.getElementById('c');
@@ -861,12 +946,13 @@ const GameLoop = {
       if (cx >= C.W - 128 && cx <= C.W - 32 && cy >= 4 && cy <= 28) {
         STATE.musicEnabled = !STATE.musicEnabled;
         STATE.musicEnabled ? BGM.play() : BGM.stop();
+        GameLoop._savePrefs();
         return;
       }
       if (cy >= 233 && cy <= 269) {
-        if (cx >= C.W/3 - 185 && cx < C.W/3 - 75)  { STATE.difficulty = 'easy';   return; }
-        if (cx >= C.W/3 - 55  && cx < C.W/3 + 55)  { STATE.difficulty = 'normal'; return; }
-        if (cx >= C.W/3 + 75  && cx < C.W/3 + 185) { STATE.difficulty = 'hard';   return; }
+        if (cx >= C.W/3 - 185 && cx < C.W/3 - 75)  { STATE.difficulty = 'easy';   GameLoop._savePrefs(); return; }
+        if (cx >= C.W/3 - 55  && cx < C.W/3 + 55)  { STATE.difficulty = 'normal'; GameLoop._savePrefs(); return; }
+        if (cx >= C.W/3 + 75  && cx < C.W/3 + 185) { STATE.difficulty = 'hard';   GameLoop._savePrefs(); return; }
       }
     };
     canvas.addEventListener('mousedown', handler);
@@ -958,42 +1044,54 @@ const GameLoop = {
     STATE.screen  = 'point';
   },
 
+  _savePrefs() {
+    try { localStorage.setItem('ppPrefs', JSON.stringify({ difficulty: STATE.difficulty, musicEnabled: STATE.musicEnabled })); } catch {}
+  },
+
   _handleEvent(ev) {
     if (!ev) return;
     if (ev.type === 'wall')  { Audio.wall(); return; }
-    if (ev.type === 'hit')   { Audio.hit();  return; }
+    if (ev.type === 'hit')   { ev.isPower ? Audio.powerHit() : Audio.hit(); return; }
     if (ev.type === 'score') { this._awardPoint(ev.winner); return; }
   },
 
-  _frame(ts) {
-    this.lastTs = ts;
+  _tick() {
+    if (STATE.screen !== 'playing') return;
 
-    if (STATE.screen === 'playing') {
-      Input.updatePlayer(STATE);
-      AI.update(STATE);
+    Input.updatePlayer(STATE);
+    AI.update(STATE);
 
-      if (!STATE.ball.inPlay) {
-        // Ball sticks to the server until served
-        if (STATE.serving === 'player') {
-          STATE.ball.x = STATE.player.x;
-          STATE.ball.y = C.PLAYER_Y - 18;
-        } else {
-          STATE.ball.x = STATE.cpu.x;
-          STATE.ball.y = C.CPU_Y + 18;
-        }
-        // CPU countdown
-        if (!STATE.awaitingPlayerServe) {
-          if (STATE.serveTimer > 0) {
-            STATE.serveTimer--;
-          } else {
-            Physics.launchServe(STATE);
-          }
-        }
+    if (!STATE.ball.inPlay) {
+      // Ball sticks to the server until served
+      if (STATE.serving === 'player') {
+        STATE.ball.x = STATE.player.x;
+        STATE.ball.y = C.PLAYER_Y - 18;
       } else {
-        STATE.pointTimer++;
-        const ev = Physics.step(STATE);
-        this._handleEvent(ev);
+        STATE.ball.x = STATE.cpu.x;
+        STATE.ball.y = C.CPU_Y + 18;
       }
+      // CPU countdown
+      if (!STATE.awaitingPlayerServe) {
+        if (STATE.serveTimer > 0) STATE.serveTimer--;
+        else Physics.launchServe(STATE);
+      }
+    } else {
+      STATE.pointTimer++;
+      const ev = Physics.step(STATE);
+      this._handleEvent(ev);
+    }
+  },
+
+  _frame(ts) {
+    if (this._lastTs === 0) this._lastTs = ts;
+    let dt = ts - this._lastTs;
+    this._lastTs = ts;
+    if (dt > 100) dt = 100;  // cap: prevents spiral of death after tab-switch
+
+    this._accum += dt;
+    while (this._accum >= this.TICK) {
+      this._tick();
+      this._accum -= this.TICK;
     }
 
     Renderer.draw(STATE);
@@ -1006,3 +1104,4 @@ window.addEventListener('load', () => GameLoop.init());
 </script>
 </body>
 </html>
+
