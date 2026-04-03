@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sneakerhead Night at the Dream — Joe Sargent</title>
+  <link rel="icon" type="image/png" href="../Reference Images/Sarge Favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,700;0,800;0,900;1,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --fg: #1a1a1a; --muted: #6b6b6b;
+      --border: rgba(26,26,26,0.1); --accent: #d1fd88;
+      --dark: #111111; --pad: clamp(1.25rem, 5vw, 5rem); --r: 10px;
+    }
+    html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    ::selection { background: var(--accent); color: var(--fg); }
+
+    /* NAV */
+    .cs-nav {
+      position: sticky; top: 0; z-index: 100;
+      padding: 0 var(--pad);
+      height: 64px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .cs-back {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.8125rem; font-weight: 800;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .cs-back:hover { color: var(--fg); }
+    .cs-brand {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.8125rem; font-weight: 900;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      text-decoration: none; color: var(--fg);
+    }
+
+    /* HERO */
+    .cs-hero {
+      aspect-ratio: 21/9;
+      overflow: hidden;
+      background: var(--dark);
+      position: relative;
+    }
+    .cs-hero img {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+      opacity: 0.88;
+    }
+    .cs-hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to right, rgba(17,17,17,0.5) 0%, transparent 60%);
+    }
+    @media (max-width: 640px) { .cs-hero { aspect-ratio: 16/9; } }
+
+    /* STAT BAR */
+    .cs-stats {
+      background: var(--dark); color: #fff;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+    }
+    .cs-stat {
+      padding: clamp(1.5rem, 4vw, 2.25rem) var(--pad);
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .cs-stat:last-child { border-right: 0; }
+    .cs-stat-num {
+      font-family: 'Public Sans', sans-serif;
+      font-size: clamp(1.75rem, 3vw, 2.5rem);
+      font-weight: 900; letter-spacing: -0.03em;
+      color: var(--accent); display: block; margin-bottom: 0.3rem;
+    }
+    .cs-stat-label {
+      font-size: 0.75rem; color: rgba(255,255,255,0.5);
+      line-height: 1.4;
+    }
+    @media (max-width: 520px) {
+      .cs-stats { grid-template-columns: 1fr; }
+      .cs-stat { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+      .cs-stat:last-child { border-bottom: 0; }
+    }
+
+    /* CONTENT WRAP */
+    .cs-wrap { max-width: 840px; margin: 0 auto; padding: clamp(3rem, 7vw, 6rem) var(--pad); }
+
+    .cs-meta {
+      display: flex; gap: 2rem; flex-wrap: wrap;
+      margin-bottom: 3rem; padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .cs-meta-label {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.6rem; font-weight: 800;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 0.3rem;
+    }
+    .cs-meta-value {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.9375rem; font-weight: 700;
+    }
+
+    .cs-eyebrow {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.65rem; font-weight: 800;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1rem;
+    }
+
+    h1.cs-title {
+      font-family: 'Public Sans', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 900; line-height: 1.02;
+      letter-spacing: -0.035em; text-transform: uppercase;
+      margin-bottom: 1.75rem;
+    }
+
+    .cs-intro {
+      font-size: clamp(1rem, 1.3vw, 1.125rem);
+      line-height: 1.8; color: var(--muted);
+      max-width: 58ch; margin-bottom: 4rem;
+    }
+
+    .cs-section { margin-bottom: 3.5rem; }
+    .cs-section h2 {
+      font-family: 'Public Sans', sans-serif;
+      font-size: clamp(1.1rem, 1.75vw, 1.5rem);
+      font-weight: 900; letter-spacing: -0.02em;
+      text-transform: uppercase; margin-bottom: 1rem;
+    }
+    .cs-section p {
+      font-size: clamp(0.9375rem, 1.05vw, 1rem);
+      line-height: 1.85; color: var(--muted);
+      max-width: 60ch; margin-bottom: 1rem;
+    }
+    .cs-section p:last-child { margin-bottom: 0; }
+
+    /* RESULT PILLS */
+    .cs-results {
+      display: flex; flex-wrap: wrap; gap: 0.625rem; margin-top: 1.5rem;
+    }
+    .cs-result-pill {
+      display: inline-flex; align-items: center;
+      padding: 0.5rem 1.25rem;
+      background: var(--dark); color: var(--accent);
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.7rem; font-weight: 900;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border-radius: 999px;
+    }
+
+    /* PULL QUOTE */
+    .cs-pull {
+      margin: 2.5rem 0;
+      padding: 2rem 2.5rem;
+      background: #f7f7f7;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--r) var(--r) 0;
+    }
+    .cs-pull p {
+      font-family: 'Public Sans', sans-serif;
+      font-size: clamp(1rem, 1.5vw, 1.25rem);
+      font-weight: 800; letter-spacing: -0.02em;
+      color: var(--fg) !important;
+      max-width: none !important;
+    }
+
+    /* VIDEO */
+    .cs-video {
+      aspect-ratio: 16/9;
+      border-radius: var(--r);
+      overflow: hidden; margin: 2rem 0;
+      background: var(--dark);
+    }
+    .cs-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+    /* CTA */
+    .cs-cta-row {
+      margin-top: 4rem; padding-top: 3rem;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;
+    }
+    .cs-cta-row p {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 1.125rem; font-weight: 900;
+      letter-spacing: -0.015em; text-transform: uppercase;
+      color: var(--fg);
+    }
+    .cs-btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.875rem 1.75rem;
+      background: var(--dark); color: #fff;
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.75rem; font-weight: 900;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      border-radius: 999px; text-decoration: none; border: none;
+      cursor: pointer;
+      transition: background 0.25s, color 0.25s, transform 0.2s;
+    }
+    .cs-btn:hover { background: var(--accent); color: var(--fg); transform: translateY(-2px); }
+  </style>
+</head>
+<body>
+
+  <nav class="cs-nav">
+    <a class="cs-back" href="../index.html#work">← Back to Work</a>
+    <a class="cs-brand" href="../index.html">Joe Sargent</a>
+  </nav>
+
+  <div class="cs-hero">
+    <img src="../Reference Images/Sneakerhead Card.png" alt="Sneakerhead Night at the Dream">
+    <div class="cs-hero-overlay"></div>
+  </div>
+
+  <div class="cs-stats">
+    <div class="cs-stat">
+      <span class="cs-stat-num">$$$</span>
+      <span class="cs-stat-label">Incremental sponsor investment</span>
+    </div>
+    <div class="cs-stat">
+      <span class="cs-stat-num">Sold Out</span>
+      <span class="cs-stat-label">Limited capsule collab +<br>sellout crowd for a historically<br>slow-selling game.</span>
+    </div>
+    <div class="cs-stat">
+      <span class="cs-stat-num">Diggy<br>+ Fizzy</span>
+      <span class="cs-stat-label">Designed from day one to be immersive<br>drawing fans to the game and<br>giving them content worth sharing.</span>
+    </div>
+  </div>
+
+  <div class="cs-wrap">
+    <div class="cs-meta">
+      <div class="cs-meta-item">
+        <div class="cs-meta-label">Client</div>
+        <div class="cs-meta-value">Atlanta Dream (WNBA)</div>
+      </div>
+      <div class="cs-meta-item">
+        <div class="cs-meta-label">Category</div>
+        <div class="cs-meta-value">Brand Partnerships</div>
+      </div>
+      <div class="cs-meta-item">
+        <div class="cs-meta-label">Role</div>
+        <div class="cs-meta-value">Concept, Strategy &amp; Execution</div>
+      </div>
+      <div class="cs-meta-item">
+        <div class="cs-meta-label">Year</div>
+        <div class="cs-meta-value">2025</div>
+      </div>
+    </div>
+
+    <p class="cs-eyebrow">Case Study</p>
+    <h1 class="cs-title">Sneakerhead Night<br>at the Dream</h1>
+    <p class="cs-intro">An enhanced activation concept that brought Atlanta's sneaker culture into the WNBA arena and proved the best experiential moments live online at the same time.</p>
+
+    <div class="cs-section">
+      <h2>The Challenge</h2>
+      <p>The Atlanta Dream had a Sneakerhead Night that had lost its impact. The team was enjoying its best season on the court in years, but struggeled to penetrate the streetwear and sneaker communities that dominate Atlanta's cultural conversation. Sneakerheads weren't against women's ball, they just hadn't seen consistent reasons to show up.</p>
+      <p>The team needed a signature moment that could do two things simultaneously: drive real ticket revenue and generate the kind of authentic content that spreads on its own. Something the city's tastemakers would actually want to be part of.</p>
+    </div>
+
+    <div class="cs-section">
+      <h2>The Approach</h2>
+      <p>I first established a Theme Nights Playbook that helped give Sneakerhead Night at the Dream more context given the goal: a <strong>fully immersive in-game takeover</strong> built around Atlanta's sneaker culture from the ground up. The concept wasn't a wrapper thrown over a normal game. With the playbook, it was a platform: every touchpoint, from the parking lot to the final buzzer, was designed to deliver content worth sharing to feed a Diggy/Fizzy loop that would draw more fans in to learn about the team.</p>
+      <p>I brought together external partners to deliver a plan that started at the door with a <strong>Dream "AJ1" keychain giveaway</strong>. Concourse activations included a <strong>sneaker designer who we paired with Rhyne Howard in advance to develop a custom design.</strong> The designer gifted Rhyne a pair, and completed a second version live on the concourse as fans entered the arena. A <strong>lucky fan won the second pair</strong> during a 4th quarter timeout contest.</p>
+      <p>Also on the concourse was a <strong>360o Shoe Cam, "Shoe-lrey" vendor, 2k gaming station, and photo booth</strong>. I booked <strong>Trinidad James</strong> as the game's halftime act, knowing he would bring it for the performance and outfit. I then led a <strong>retail collab with HommeWrk</strong>, Trinidad's streetwear brand based in downtown Atlanta.</p>
+      <p>The capsule was an in-arena exclusive, driving ticket sales and early entry to get the pieces before they sold out. Trinidad performed in the collection, and created some dope content to help promote via collab posts. Great partner!</p>
+      <p> I brought Social and Content together to boost TJ's (I can call him TJ now right?) post, the content between Rhyne and the designer, and organic ideas to drive excitement for the game.</p>
+
+      <div class="cs-pull">
+        <p>"Every element was designed to be filmed. If it wasn't content-worthy, it didn't make the cut."</p>
+      </div>
+
+      <p>That's the Diggy/Fizzy framework in practice. Diggy is the invitation to particpate we built into every content decision and the shareable moments created on the concourse. The event didn't end when the final buzzer sounded. And it started before tipoff thanks to my close, personal friend Trinidad James and Lxrd V, the world's dopest sneaker designer, bringing great stories to life before the game. That content and more was shared, drawing more fans to experience a Dream game live. The loop repeats.</p>
+    </div>
+
+    <div class="cs-section">
+      <h2>The Work</h2>
+      <div class="cs-video">
+        <iframe src="https://player.vimeo.com/video/1125635292?title=0&byline=0&portrait=0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <div class="cs-section">
+      <h2>Results</h2>
+      <p>Sneakerhead Night delivered a sellout, keeping the Dream's multiyear streak alive for a game that was historically slow-selling. The capsule collaboration sold out. And Trinidad James brought pregame energy he delivered on at halftime with scroll-stopping clips to promote, and a team of double dutchers to accompany his performance. Sneakerhead Night content drew among the highest engagement of the season. A win considering gameday content was among the lowest performing for the team.</p>
+      <p>More importantly, it proved you don't find new fans by waiting for them to come to you. You build something worth their time and build in Diggy/Fizzy thinking to feed more growth.</p>
+
+      <div class="cs-results">
+        <span class="cs-result-pill">Sold Out Game</span>
+        <span class="cs-result-pill">Sold Out Retail Collab</span>
+        <span class="cs-result-pill">Trinidad James Halftime</span>
+        <span class="cs-result-pill">Season-High Fan Engagement</span>
+      </div>
+    </div>
+
+    <div class="cs-cta-row">
+      <p>Want to build something like this?</p>
+      <button class="cs-btn" onclick="(function(){var u='josephmsargent',d='gmail',t='com';window.location.href='mailto:'+u+'\x40'+d+'.'+t;})()">Let's Talk Activation</button>
+    </div>
+  </div>
+
+</body>
+</html>
