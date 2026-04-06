@@ -1767,13 +1767,14 @@
     function showPage(id, navEl) {
       // Kill Pickle Pong audio when leaving the Play tab
       const frame = document.getElementById('pickle-pong-frame');
-      const leavingPlay = !document.getElementById('page-play').classList.contains('visible') === false;
-      if (id !== 'play' && frame && frame.src && frame.src !== window.location.href) {
-        frame.src = ''; // clears the iframe, stops audio
+      if (id !== 'play' && frame.dataset.loaded) {
+        frame.src = 'about:blank';
+        delete frame.dataset.loaded;
       }
       // Lazy-load Pickle Pong on first visit to Play tab
-      if (id === 'play' && frame && !frame.src) {
+      if (id === 'play' && !frame.dataset.loaded) {
         frame.src = frame.dataset.src;
+        frame.dataset.loaded = '1';
       }
 
       document.querySelectorAll('.page').forEach(p => p.classList.remove('visible'));
