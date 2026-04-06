@@ -1114,6 +1114,174 @@
       color: var(--muted);
       letter-spacing: 0.04em;
     }
+
+    /* ── CURRENT PROJECTS PAGE ───────────────────────────────────────────── */
+    .projects-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: clamp(3rem, 8vh, 5rem) var(--pad) 4rem;
+    }
+    .projects-page-header {
+      margin-bottom: 3.5rem;
+    }
+    .projects-page-header h2 {
+      font-family: 'Public Sans', sans-serif;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .projects-page-header p {
+      font-size: 0.9375rem;
+      color: var(--muted);
+      max-width: 52ch;
+      line-height: 1.75;
+    }
+    .project-card {
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .project-card-header {
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .project-card-meta { display: flex; flex-direction: column; gap: 0.3rem; }
+    .project-card-label {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .project-card-title {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .project-card-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .btn-pdf-view {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1.25rem;
+      background: var(--fg);
+      color: #fff;
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      text-decoration: none;
+    }
+    .btn-pdf-view:hover { background: #333; transform: translateY(-1px); }
+    .btn-pdf-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      text-decoration: none;
+    }
+    .btn-pdf-dl:hover { color: var(--fg); border-color: var(--fg); }
+    .pdf-viewer-wrap {
+      display: none;
+      background: #f4f4f2;
+      border-top: 1px solid var(--border);
+      max-height: 78vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+      scroll-behavior: smooth;
+    }
+    .pdf-viewer-wrap.open { display: block; }
+    .pdf-page-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.13);
+      margin-bottom: 1rem;
+      background: #fff;
+    }
+    .pdf-page-canvas:last-child { margin-bottom: 0; }
+    .pdf-status {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 600px) {
+      .project-card-header { padding: 1.25rem; }
+      .project-card-actions { width: 100%; }
+      .btn-pdf-view, .btn-pdf-dl { flex: 1; justify-content: center; }
+    }
+
+    /* ── PLAY PAGE ───────────────────────────────────────────────────────── */
+    .play-wrap {
+      height: calc(100vh - var(--nav-h));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .play-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem var(--pad);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .play-bar-title {
+      font-family: 'Public Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .play-bar-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    @media (max-width: 500px) { .play-bar-hint { display: none; } }
+    #pickle-pong-frame {
+      flex: 1;
+      border: none;
+      display: block;
+      width: 100%;
+      background: #000;
+    }
   </style>
 </head>
 <body>
@@ -1123,9 +1291,11 @@
     <span class="nav-brand" onclick="showPage('home')">Joe Sargent</span>
     <div class="nav-right">
       <ul class="nav-tabs">
-        <li><a id="tab-about"   onclick="showPage('about',   this)">About</a></li>
-        <li><a id="tab-work"    onclick="showPage('work',    this)">Work</a></li>
-        <li><a id="tab-contact" onclick="showPage('contact', this)">Contact</a></li>
+        <li><a id="tab-work"     onclick="showPage('work',     this)">Work</a></li>
+        <li><a id="tab-projects" onclick="showPage('projects', this)">Current Projects</a></li>
+        <li><a id="tab-play"     onclick="showPage('play',     this)">Play</a></li>
+        <li><a id="tab-about"    onclick="showPage('about',    this)">About</a></li>
+        <li><a id="tab-contact"  onclick="showPage('contact',  this)">Contact</a></li>
       </ul>
       <button class="nav-cta" onclick="openEmail()">Let's Talk</button>
     </div>
@@ -1310,7 +1480,7 @@
           <div class="case-body">
             <p class="case-cat">Content Strategy</p>
             <h3 class="case-title">#BartenderBrad — Miller Lite × NASCAR</h3>
-            <p class="case-desc">Turned Brad Keselowski's on-track penalty into Miller Lite's best social content of the year. 7-episode branded series, connecting fans to the brand.</p>
+            <p class="case-desc">Turned Brad Keselowski's on-track penalty into Miller Lite's best social content of the year. 7-episode branded series, Connecting fans to the brand.</p>
             <span class="case-link">View Case Study →</span>
           </div>
         </a>
@@ -1361,7 +1531,7 @@
       <div class="about-grid">
         <div class="about-body">
           <h2>People-First<br>Brand Builder</h2>
-          <p>Joe Sargent is a sports marketing and partnerships executive with 15+ years of experience building brand platforms where culture, sports, and community converge. He has led award-winning campaigns for global names including the Kansas City Chiefs, Coors Light, EFFEN Vodka, Wilson Sporting Goods, and the Atlanta Dream.</p>
+          <p>Joe Sargent is a sports marketing and partnerships executive with 15+ years of experience building brand platforms where culture, sports, and community converge. He has led award-winning campaigns for global names including the Kansas City Chiefs, Coors Light, EFFEN Vodka, Wilson Sporting Goods, and ethe Atlanta Dream.</p>
           <p>A strategic creative at his core, Joe brings a rare blend of partnership strategy and fan-first content development from his experience on the brand and sports property sides. He creates programs that deliver business outcomes and get shared in the Group Chat. His work spans brand strategy, experiential activation, content production, and integrated partnership campaigns.</p>
           <p>Joe has represented brands on the national stage at events including the Super Bowl, Art Basel and W + MNBA All-Star Weekend. He was a featured speaker at the Sports Innovation Forum, where he led conversations on winning fans in and outside of the stadium by getting Diggy/Fizzy.</p>
           <div class="pills">
@@ -1439,7 +1609,7 @@
           <div class="case-body">
             <p class="case-cat">Content Strategy</p>
             <h3 class="case-title">#BartenderBrad — Miller Lite × NASCAR</h3>
-            <p class="case-desc">Turned Brad Keselowski's on-track penalty into Miller Lite's best social content of the year. 7-episode branded series, connecting fans to the brand.</p>
+            <p class="case-desc">Turned Brad Keselowski's on-track penalty into Miller Lite's best social content of the year. 7-episode branded series, Connecting fans to the brand.</p>
             <span class="case-link">View Case Study →</span>
             </div>
           </a>
@@ -1489,6 +1659,58 @@
       <span>© 2026 Joe Sargent</span>
       <span>Sports Marketing &amp; Partnerships Consultant</span>
     </footer>
+  </div>
+
+  <!-- CURRENT PROJECTS -->
+  <div id="page-projects" class="page">
+    <div class="projects-wrap">
+
+      <div class="projects-page-header">
+        <p class="work-section-label">What's In The Works</p>
+        <h2>Current<br>Projects</h2>
+        <p>Live activations, pitches in motion, and things worth watching. Click any deck to read it right here.</p>
+      </div>
+
+      <!-- Legacy Weekend -->
+      <div class="project-card">
+        <div class="project-card-header">
+          <div class="project-card-meta">
+            <span class="project-card-label">Live Event &nbsp;·&nbsp; Knoxville, TN &nbsp;·&nbsp; June 2026</span>
+            <span class="project-card-title">Legacy Weekend</span>
+          </div>
+          <div class="project-card-actions">
+            <button class="btn-pdf-view" id="btn-legacy" onclick="togglePDF('legacy')">View Deck</button>
+            <a class="btn-pdf-dl" href="pdfs/legacy-weekend-deck.pdf" download="Legacy_Weekend_Deck.pdf">↓ Download</a>
+          </div>
+        </div>
+        <div id="pdf-legacy" class="pdf-viewer-wrap">
+          <p class="pdf-status" id="pdf-legacy-status">Loading deck…</p>
+        </div>
+      </div>
+
+    </div>
+    <footer>
+      <span>© 2026 Joe Sargent</span>
+      <span>Sports Marketing &amp; Partnerships Consultant</span>
+    </footer>
+  </div>
+
+  <!-- PLAY -->
+  <div id="page-play" class="page">
+    <div class="play-wrap">
+      <div class="play-bar">
+        <span class="play-bar-title">Pickle Pong</span>
+        <span class="play-bar-hint">Arrow keys or tap to move &nbsp;·&nbsp; sound on for the full experience</span>
+      </div>
+      <iframe
+        id="pickle-pong-frame"
+        src=""
+        data-src="../pickle-pong/index.html"
+        allow="autoplay"
+        scrolling="no"
+        title="Pickle Pong"
+      ></iframe>
+    </div>
   </div>
 
   <script>
@@ -1543,6 +1765,17 @@
 
     /* PAGE SWITCHING */
     function showPage(id, navEl) {
+      // Kill Pickle Pong audio when leaving the Play tab
+      const frame = document.getElementById('pickle-pong-frame');
+      const leavingPlay = !document.getElementById('page-play').classList.contains('visible') === false;
+      if (id !== 'play' && frame && frame.src && frame.src !== window.location.href) {
+        frame.src = ''; // clears the iframe, stops audio
+      }
+      // Lazy-load Pickle Pong on first visit to Play tab
+      if (id === 'play' && frame && !frame.src) {
+        frame.src = frame.dataset.src;
+      }
+
       document.querySelectorAll('.page').forEach(p => p.classList.remove('visible'));
       document.getElementById('page-' + id).classList.add('visible');
       document.querySelectorAll('.nav-tabs a').forEach(a => a.classList.remove('active'));
@@ -1551,6 +1784,75 @@
     }
     if (window.location.hash === '#work') {
       showPage('work', document.getElementById('tab-work'));
+    }
+
+    /* PDF VIEWER */
+    const _pdfRendered = {};
+    let _pdfLib = null;
+
+    function loadPDFJS(cb) {
+      if (_pdfLib) { cb(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+      s.onload = function() {
+        _pdfLib = window['pdfjs-dist/build/pdf'];
+        _pdfLib.GlobalWorkerOptions.workerSrc =
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        cb();
+      };
+      document.head.appendChild(s);
+    }
+
+    function togglePDF(id) {
+      const wrap = document.getElementById('pdf-' + id);
+      const btn  = document.getElementById('btn-' + id);
+
+      if (wrap.classList.contains('open') && _pdfRendered[id]) {
+        wrap.classList.remove('open');
+        btn.textContent = 'View Deck';
+        return;
+      }
+
+      wrap.classList.add('open');
+      btn.textContent = 'Close Deck';
+      if (_pdfRendered[id]) return; // already rendered, just show
+
+      loadPDFJS(function() {
+        const pdfPath = id === 'legacy' ? 'pdfs/legacy-weekend-deck.pdf' : '';
+        const status  = document.getElementById('pdf-' + id + '-status');
+
+        _pdfLib.getDocument(pdfPath).promise.then(function(pdf) {
+          if (status) status.remove();
+
+          // Determine fit scale from first page
+          pdf.getPage(1).then(function(p1) {
+            const vp1   = p1.getViewport({ scale: 1 });
+            const pad   = 48;
+            const avail = wrap.clientWidth - pad;
+            const dpr   = Math.min(window.devicePixelRatio || 1, 2);
+            const scale = (avail / vp1.width) * dpr;
+
+            // Render pages sequentially
+            (function renderNext(n) {
+              if (n > pdf.numPages) { _pdfRendered[id] = true; return; }
+              pdf.getPage(n).then(function(page) {
+                const vp     = page.getViewport({ scale: scale });
+                const canvas = document.createElement('canvas');
+                canvas.className = 'pdf-page-canvas';
+                canvas.width  = vp.width;
+                canvas.height = vp.height;
+                canvas.style.width  = avail + 'px';
+                canvas.style.height = 'auto';
+                wrap.appendChild(canvas);
+                page.render({ canvasContext: canvas.getContext('2d'), viewport: vp })
+                    .promise.then(function() { renderNext(n + 1); });
+              });
+            }(1));
+          });
+        }).catch(function() {
+          if (status) status.textContent = 'Unable to load. Use the Download button below.';
+        });
+      });
     }
 
     /* EMAIL */
