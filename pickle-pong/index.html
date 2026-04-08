@@ -125,6 +125,8 @@ const STATE = {
     x: C.CENTER_X, y: C.PLAYER_Y,
     hitFlash: 0, isPower: false,
     facingRight: true,
+    walkCycle: 0,
+    paddleFlipped: false,
   },
 
   cpu: {
@@ -134,12 +136,16 @@ const STATE = {
     missOffset: 0,
     framesSince: 0,
     facingRight: true,
+    walkCycle: 0,
+    paddleFlipped: false,
   },
 
   scoreAnim: { on: false, text: '', alpha: 0, y: C.NET_Y },
   lastWinner: null,
-  powerCharging: false,
   powerLevel: 0,
+  powerReady: false,
+  lives: 3,
+  survivalTime: 0,
 };
 
 // =============================================================
@@ -220,15 +226,30 @@ const Physics = {
 
       // Double-bounce rule: power shot locked for the first 2 hits after every serve
       const powerAllowed = who === 'player' && pad.isPower && state.doubleBounceCount >= 2;
-      const cap = powerAllowed ? C.BALL_SPEED_MAX : state.currentSpeedCap;
-      const spd = Math.hypot(b.dx, b.dy);
-      if (spd > cap) { const s = cap / spd; b.dx *= s; b.dy *= s; }
-
-      const minDy = 5;
-      if (Math.abs(b.dy) < minDy) b.dy = who === 'player' ? -minDy : minDy;
+      if (powerAllowed) {
+        // Flubber: triple velocity, guarantee a minimum vertical rocket speed
+        b.dx *= 3.0;
+        b.dy *= 3.0;
+        if (Math.abs(b.dy) < 30) b.dy = -30;
+        pad.hitFlash = 22;
+      } else {
+        const spd = Math.hypot(b.dx, b.dy);
+        if (spd > state.currentSpeedCap) { const s = state.currentSpeedCap / spd; b.dx *= s; b.dy *= s; }
+        const minDy = 5;
+        if (Math.abs(b.dy) < minDy) b.dy = who === 'player' ? -minDy : minDy;
+        pad.hitFlash = 10;
+      }
       b.y += b.dy * 0.5;
-      pad.hitFlash = 10;
+      pad.paddleFlipped = true;
       state.doubleBounceCount++;
+      if (who === 'player') {
+        if (state.powerReady) {
+          state.powerReady = false;
+          state.powerLevel = 0;
+        } else {
+          state.powerLevel = Math.min(1, state.powerLevel + 0.125);
+        }
+      }
       return { type: 'hit', who, isPower: powerAllowed };
     }
     return null;
@@ -293,6 +314,7 @@ const AI = {
   },
 
   _move(cpu, cfg) {
+    const prevX = cpu.x;
     const diff = cpu.targetX - cpu.x;
     if (Math.abs(diff) > 1) {
       cpu.x += Math.sign(diff) * Math.min(Math.abs(diff), cfg.spd);
@@ -300,6 +322,7 @@ const AI = {
     }
     cpu.x = Math.max(C.COURT_LEFT + C.PAD_W / 2,
               Math.min(C.COURT_RIGHT - C.PAD_W / 2, cpu.x));
+    cpu.walkCycle += Math.abs(cpu.x - prevX) * 0.15;
   },
 };
 
@@ -332,13 +355,16 @@ const Input = {
         // Space also serves for player
         if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
           Physics.launchServe(STATE);
+          return;
+        }
+        // Arm power shot if bar is full
+        if (STATE.screen === 'playing' && STATE.ball.inPlay && STATE.powerLevel >= 1.0) {
+          STATE.powerReady = true;
         }
       }
-      if (e.code === 'KeyS') STATE.powerCharging = true;
     });
     window.addEventListener('keyup', e => {
       this.keys[e.code] = false;
-      if (e.code === 'KeyS') STATE.powerCharging = false;
     });
 
     canvas.addEventListener('mousemove', e => {
@@ -369,14 +395,14 @@ const Input = {
       if (STATE.screen === 'gameover') { GameLoop.startGame(); return; }
       if (STATE.screen === 'point')    { GameLoop.nextRally(); return; }
 
-      // Power button (bottom-right region)
-      if (this.touchX > C.W - 90 && touchY > C.H - 90) {
-        STATE.powerCharging = true;
-        return;
-      }
       // Tap to serve
       if (STATE.screen === 'playing' && !STATE.ball.inPlay && STATE.awaitingPlayerServe) {
         Physics.launchServe(STATE);
+        return;
+      }
+      // Tap to arm power shot (anywhere on screen when bar is full)
+      if (STATE.screen === 'playing' && STATE.ball.inPlay && STATE.powerLevel >= 1.0) {
+        STATE.powerReady = true;
         return;
       }
     }, { passive: false });
@@ -389,7 +415,6 @@ const Input = {
 
     canvas.addEventListener('touchend', e => {
       e.preventDefault();
-      STATE.powerCharging = false;
     }, { passive: false });
   },
 
@@ -423,6 +448,7 @@ const Input = {
     const moved = p.x - prevX;
     if (moved > 0.5)  p.facingRight = true;
     if (moved < -0.5) p.facingRight = false;
+    if (Math.abs(moved) > 0.5) p.walkCycle += Math.abs(moved) * 0.15;
 
     // Sneaker squeak every 2–4 direction changes
     if (this._squeakCd > 0) this._squeakCd--;
@@ -439,12 +465,7 @@ const Input = {
     if (dir !== 0) this._prevDir = dir;
 
     // Power shot
-    if (state.powerCharging) {
-      state.powerLevel = Math.min(1, state.powerLevel + 0.025);
-    } else {
-      state.powerLevel = Math.max(0, state.powerLevel - 0.04);
-    }
-    p.isPower = state.powerLevel > 0.15;
+    p.isPower = state.powerReady;
   },
 };
 
@@ -470,20 +491,31 @@ const Audio = {
     this._noiseHit(t, 1100, 1.4, 0.055, 0.50, 1400, 350, 0.25);
   },
 
-  // Power shot: lower, heavier thwack
+  // Power shot: Flubber crack — loud thwack + sub-bass thump + upward whoosh
   powerHit() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this._noiseHit(t, 650, 2.2, 0.085, 0.75, 900, 180, 0.40);
-    // Extra sub-bass thump
+    // Main crack (bigger, louder)
+    this._noiseHit(t, 550, 3.0, 0.10, 2.2, 800, 120, 1.1);
+    // Sub-bass thump
     const sub = this.ctx.createOscillator();
     const sg = this.ctx.createGain();
     sub.connect(sg); sg.connect(this.master);
-    sub.type = 'sine'; sub.frequency.setValueAtTime(90, t);
-    sub.frequency.exponentialRampToValueAtTime(40, t + 0.12);
-    sg.gain.setValueAtTime(0.30, t);
-    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-    sub.start(t); sub.stop(t + 0.13);
+    sub.type = 'sine'; sub.frequency.setValueAtTime(110, t);
+    sub.frequency.exponentialRampToValueAtTime(30, t + 0.18);
+    sg.gain.setValueAtTime(0.85, t);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    sub.start(t); sub.stop(t + 0.19);
+    // Upward whoosh (energy launch feel)
+    const whoosh = this.ctx.createOscillator();
+    const wg = this.ctx.createGain();
+    whoosh.connect(wg); wg.connect(this.master);
+    whoosh.type = 'sawtooth';
+    whoosh.frequency.setValueAtTime(180, t + 0.02);
+    whoosh.frequency.exponentialRampToValueAtTime(1200, t + 0.14);
+    wg.gain.setValueAtTime(0.18, t + 0.02);
+    wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    whoosh.start(t + 0.02); whoosh.stop(t + 0.17);
   },
 
   _noiseHit(t, bpFreq, bpQ, noiseDur, noiseVol, clickFreqHi, clickFreqLo, clickVol) {
@@ -678,6 +710,7 @@ const Renderer = {
     // Hit flash: draw a white pulse before the image
     if (pad.hitFlash > 0) {
       pad.hitFlash--;
+      if (pad.hitFlash === 0) pad.paddleFlipped = false;
       ctx.save();
       ctx.globalAlpha = pad.hitFlash / 10 * 0.55;
       ctx.fillStyle = '#ffffff';
@@ -700,8 +733,9 @@ const Renderer = {
     // CPU at top faces DOWN toward player — flip vertically
     if (!isPlayer) ctx.scale(1, -1);
 
-    // Flip horizontally based on movement direction
-    if (!pad.facingRight) ctx.scale(-1, 1);
+    // Flip horizontally: on hit, show follow-through (opposite side) for hitFlash duration
+    const showRight = pad.paddleFlipped ? !pad.facingRight : pad.facingRight;
+    if (!showRight) ctx.scale(-1, 1);
 
     // Draw: top of figure at (py - H + offset), bottom at (py + small offset)
     // After translate, origin is at (px, py).
@@ -710,56 +744,149 @@ const Renderer = {
 
     ctx.restore();
 
-    // Power glow overlay (drawn separately, above the image)
-    if (isPlayer && power > 0.15) {
-      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 70);
+    // Animated walking feet (screen space, outside transform block)
+    const feetY = py + (isPlayer ? 12 : -12);
+    const yDir  = isPlayer ? -1 : 1;
+    const leftBob  = Math.sin(pad.walkCycle) * 4 * yDir;
+    const rightBob = Math.sin(pad.walkCycle + Math.PI) * 4 * yDir;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.ellipse(px - 10, feetY + leftBob,  8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(px + 10, feetY + rightBob, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Green glow when power shot is armed
+    if (isPlayer && pad.isPower) {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 120);
       ctx.save();
-      ctx.globalAlpha = pulse * power * 0.22;
-      ctx.fillStyle = '#ff5050';
+      ctx.globalAlpha = 0.35 + 0.20 * pulse;
+      ctx.fillStyle = '#44ff44';
       ctx.beginPath();
-      ctx.ellipse(px + (pad.facingRight ? 18 : -18), py - H / 2 + 12, 22, 18, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py - H / 2 + 12, W / 2 + 8, H / 2 + 6, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
   },
 
-  _hud(ctx, state) {
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 24px monospace'; ctx.fillStyle = '#ffffff';
-    ctx.fillText(`CPU  ${state.scores.cpu} : ${state.scores.player}  YOU`, C.CENTER_X, 22);
+  _pickleBar(ctx, state) {
+    const cx = C.CENTER_X, cy = C.H - 20;
+    const W = 200, H = 26, r = H / 2;
+    const fill  = state.powerLevel;
+    const armed = state.powerReady;
+    const full  = fill >= 1.0;
 
-    // Deuce / match point indicator
-    const ps = state.scores.player, cs = state.scores.cpu;
-    const atDeuce = ps >= C.WIN_SCORE - 1 && cs >= C.WIN_SCORE - 1;
-    if (atDeuce) {
-      let label, color;
-      if (ps === cs) {
-        label = 'DEUCE'; color = '#ffdd44';
-      } else {
-        const leading = ps > cs ? 'YOU' : 'CPU';
-        label = `MATCH PT — ${leading}`; color = ps > cs ? '#44ff88' : '#ff6644';
-      }
-      ctx.font = 'bold 13px monospace'; ctx.fillStyle = color;
-      ctx.fillText(label, C.CENTER_X, 38);
+    ctx.save();
+
+    // Background capsule
+    ctx.beginPath();
+    ctx.moveTo(cx - W/2 + r, cy - H/2);
+    ctx.lineTo(cx + W/2 - r, cy - H/2);
+    ctx.arc(cx + W/2 - r, cy, r, -Math.PI/2, Math.PI/2);
+    ctx.lineTo(cx - W/2 + r, cy + H/2);
+    ctx.arc(cx - W/2 + r, cy, r, Math.PI/2, -Math.PI/2);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fill();
+
+    // Filled portion clipped to fill width
+    if (fill > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx - W/2, cy - H/2 - 1, W * fill, H + 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(cx - W/2 + r, cy - H/2);
+      ctx.lineTo(cx + W/2 - r, cy - H/2);
+      ctx.arc(cx + W/2 - r, cy, r, -Math.PI/2, Math.PI/2);
+      ctx.lineTo(cx - W/2 + r, cy + H/2);
+      ctx.arc(cx - W/2 + r, cy, r, Math.PI/2, -Math.PI/2);
+      ctx.closePath();
+      ctx.fillStyle = (armed || full) ? '#44ff44' : fill > 0.55 ? '#f0e840' : '#ff4040';
+      ctx.fill();
+      ctx.restore();
     }
 
+    // Pickle bump texture
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    const bumpCount = 5;
+    for (let i = 0; i < bumpCount; i++) {
+      const bx = cx - W/2 + r + (i + 0.5) * (W - r*2) / bumpCount;
+      ctx.beginPath(); ctx.arc(bx, cy - H/2 + 3, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx, cy + H/2 - 3, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Outline + glow when full or armed
+    if (full || armed) {
+      const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 130);
+      ctx.shadowColor = '#44ff44';
+      ctx.shadowBlur  = 14 * pulse;
+      ctx.strokeStyle = `rgba(68,255,68,${0.7 + 0.3 * pulse})`;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.shadowBlur  = 0;
+    }
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - W/2 + r, cy - H/2);
+    ctx.lineTo(cx + W/2 - r, cy - H/2);
+    ctx.arc(cx + W/2 - r, cy, r, -Math.PI/2, Math.PI/2);
+    ctx.lineTo(cx - W/2 + r, cy + H/2);
+    ctx.arc(cx - W/2 + r, cy, r, Math.PI/2, -Math.PI/2);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = (armed || full) ? '#001a00' : 'rgba(255,255,255,0.5)';
+    ctx.fillText(
+      armed ? 'ARMED' : full ? 'SPACE / TAP TO FIRE' : `POWER  ${Math.round(fill * 100)}%`,
+      cx, cy + 3.5
+    );
+
+    ctx.restore();
+  },
+
+  _hud(ctx, state) {
+    // Survival timer (top center)
+    const totalSecs = Math.floor(state.survivalTime / 60);
+    const mins = Math.floor(totalSecs / 60);
+    const ss   = String(totalSecs % 60).padStart(2, '0');
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 28px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${mins}:${ss}`, C.CENTER_X, 28);
+
+    // Best time (dimly below timer)
+    const best    = parseInt(localStorage.getItem('ppBestTime') || '0');
+    const bSecs   = Math.floor(best / 60);
+    const bMins   = Math.floor(bSecs / 60);
+    const bSS     = String(bSecs % 60).padStart(2, '0');
+    ctx.font = '11px monospace'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(`BEST  ${bMins}:${bSS}`, C.CENTER_X, 44);
+
+    // Lives (top right — filled = green, spent = dim)
+    for (let i = 0; i < 3; i++) {
+      const lx = C.W - 30 - i * 22, ly = 18;
+      ctx.beginPath();
+      ctx.arc(lx, ly, 7, 0, Math.PI * 2);
+      ctx.fillStyle   = i < state.lives ? '#44ff88' : 'rgba(255,255,255,0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // Serve indicator (bottom center)
     ctx.font = '11px monospace'; ctx.fillStyle = '#88ffaa';
+    ctx.textAlign = 'center';
     ctx.fillText(state.serving === 'player' ? '▼ YOUR SERVE' : '▲ CPU SERVE', C.CENTER_X, C.H - 6);
 
-    // Double-bounce lock indicator (first 2 hits after serve)
-    if (state.ball.inPlay && state.doubleBounceCount < 2) {
-      ctx.font = '10px monospace'; ctx.fillStyle = 'rgba(255,200,80,0.75)';
-      ctx.fillText('NO POWER — DOUBLE BOUNCE', C.CENTER_X, C.H - 18);
-    }
-
-    if (state.powerLevel > 0) {
-      const bw = 120, bh = 8, bx = 12, by = C.H - 20;
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(bx, by, bw, bh);
-      const r = state.powerLevel;
-      ctx.fillStyle = r > 0.7 ? '#ff4040' : r > 0.4 ? '#ff9900' : '#f0e840';
-      ctx.fillRect(bx, by, Math.round(bw * r), bh);
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
-    }
+    // Pickle power bar (bottom center)
+    this._pickleBar(ctx, state);
   },
 
   _serveReady(ctx, state) {
@@ -846,7 +973,7 @@ const Renderer = {
     }
 
     ctx.font = '20px monospace'; ctx.fillStyle = '#88ffaa';
-    ctx.fillText('First to 11 — Win by 2 — Rally Scoring', leftCX, 175);
+    ctx.fillText('3 Lives. How long can you last?', leftCX, 175);
     ctx.font = '15px monospace'; ctx.fillStyle = '#aaccaa';
     ctx.fillText('Difficulty: click/tap below', leftCX, 215);
 
@@ -900,16 +1027,31 @@ const Renderer = {
   },
 
   _gameover(ctx, state) {
-    const won = state.scores.player > state.scores.cpu;
+    const totalSecs = Math.floor(state.survivalTime / 60);
+    const mins = Math.floor(totalSecs / 60);
+    const ss   = String(totalSecs % 60).padStart(2, '0');
+    const best    = parseInt(localStorage.getItem('ppBestTime') || '0');
+    const bSecs   = Math.floor(best / 60);
+    const bMins   = Math.floor(bSecs / 60);
+    const bSS     = String(bSecs % 60).padStart(2, '0');
+    const isNewBest = state.survivalTime >= best;
+
     ctx.fillStyle = '#0d1b2a'; ctx.fillRect(0, 0, C.W, C.H);
     ctx.textAlign = 'center';
     ctx.font = 'bold 70px monospace';
-    ctx.fillStyle = won ? '#f0e840' : '#f25a3a';
-    ctx.fillText(won ? 'YOU WIN!' : 'CPU WINS', C.W / 2, 190);
-    ctx.font = '36px monospace'; ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${state.scores.cpu} — ${state.scores.player}`, C.W / 2, 270);
+    ctx.fillStyle = '#f25a3a';
+    ctx.fillText('GAME OVER', C.W / 2, 170);
+    ctx.font = 'bold 52px monospace'; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${mins}:${ss}`, C.W / 2, 255);
+    if (isNewBest) {
+      ctx.font = 'bold 18px monospace'; ctx.fillStyle = '#f0e840';
+      ctx.fillText('NEW BEST!', C.W / 2, 295);
+    } else {
+      ctx.font = '16px monospace'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillText(`BEST  ${bMins}:${bSS}`, C.W / 2, 295);
+    }
     ctx.font = '16px monospace'; ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('Click / Tap / Space to Play Again', C.W / 2, 380);
+    ctx.fillText('Click / Tap / Space to Play Again', C.W / 2, 390);
   },
 };
 
@@ -970,6 +1112,9 @@ const GameLoop = {
     STATE.ball.speed  = C.BALL_SPEED_INIT;
     STATE.ball.inPlay = false;
     STATE.powerLevel  = 0;
+    STATE.powerReady  = false;
+    STATE.lives       = 3;
+    STATE.survivalTime = 0;
     STATE.lastWinner  = null;
     this.nextRally();
   },
@@ -1017,21 +1162,28 @@ const GameLoop = {
 
   _awardPoint(winner) {
     Audio.score();
-    STATE.scores[winner]++;
     STATE.lastWinner  = winner;
     STATE.ball.inPlay = false;
 
     STATE.scoreAnim = {
       on: true,
-      text: winner === 'player' ? '+1  YOU' : 'CPU  +1',
+      text: winner === 'player' ? 'NICE!' : 'MISS!',
       alpha: 1.0,
       y: C.NET_Y - 10,
     };
 
-    const ps = STATE.scores.player, cs = STATE.scores.cpu;
-    if (Math.max(ps, cs) >= C.WIN_SCORE && Math.abs(ps - cs) >= C.WIN_BY) {
-      setTimeout(() => { STATE.screen = 'gameover'; Audio.win(); BGM.play(); }, 1400);
-      return;
+    if (winner === 'cpu') {
+      STATE.powerLevel = 0;
+      STATE.powerReady = false;
+      STATE.lives--;
+      if (STATE.lives <= 0) {
+        const survived = STATE.survivalTime;
+        const best = parseInt(localStorage.getItem('ppBestTime') || '0');
+        if (survived > best) localStorage.setItem('ppBestTime', String(survived));
+        STATE.screen = 'gameover';
+        setTimeout(() => { Audio.win(); BGM.play(); }, 200);
+        return;
+      }
     }
 
     const prevServer = STATE.serving;
@@ -1077,6 +1229,7 @@ const GameLoop = {
       }
     } else {
       STATE.pointTimer++;
+      STATE.survivalTime++;
       const ev = Physics.step(STATE);
       this._handleEvent(ev);
     }
@@ -1104,4 +1257,3 @@ window.addEventListener('load', () => GameLoop.init());
 </script>
 </body>
 </html>
-
