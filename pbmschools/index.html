@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Campus Takeover: host PlaqueBoyMax for 48 hours</title>
+<meta name="description" content="PlaqueBoyMax moves into your athletics program for 48 hours, live on Twitch. $0 host fee. Your school keeps what it sells.">
+<meta property="og:title" content="Campus Takeover: host PlaqueBoyMax for 48 hours">
+<meta property="og:description" content="A 48-hour live Twitch takeover of your campus. $0 host fee. Your school keeps what it sells.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.joesarge.com/pbm/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Lexend:wght@300;400;500;600&display=swap">
+<style>
+/*
+  Campus Takeover, school view.
+  Concept: the page is the stream. A fixed overlay carries a 48-hour clock that
+  runs as the reader scrolls, and a chat rail reacts to each section.
+  Edit the CONFIG block in the script at the bottom to change the contact link.
+*/
+:root{
+  --black:#000;
+  --night:#0b0e13;
+  --panel:#12161d;
+  --line:#262c36;
+  --chalk:#f3f1ea;
+  --muted:#9aa1ab;
+  --gold:#ffb81c;
+  --cyan:#1cc8dc;
+  --live:#f0261b;
+  --display:"Anton","Haettenschweiler","Arial Narrow",Impact,sans-serif;
+  --body:"Lexend",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --hud:64px;
+  --chat:0px;
+  --pad:clamp(20px,5vw,72px);
+}
+@media (min-width:1180px){:root{--chat:304px}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--hud) + 12px)}
+body{margin:0;background:var(--black);color:var(--chalk);font-family:var(--body);font-weight:300;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img,video{display:block;max-width:100%}
+img{height:auto}
+a{color:inherit}
+h1,h2,h3,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.display{font-family:var(--display);font-weight:400;text-transform:uppercase;letter-spacing:.005em;line-height:.96}
+h2.display{font-size:clamp(2.2rem,5.2vw,4.4rem)}
+.lede{font-size:clamp(1.05rem,1.5vw,1.25rem);max-width:34em;color:#d9d6cd}
+.kicker{font-weight:500;color:var(--gold);font-size:.95rem;margin-bottom:14px}
+.note{font-size:.8rem;color:var(--muted)}
+.note a{text-underline-offset:3px}
+
+/* ---------- stream overlay ---------- */
+.hud{position:fixed;inset:0 0 auto 0;height:var(--hud);z-index:40;display:flex;align-items:center;gap:18px;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));background:rgba(0,0,0,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.live{display:inline-flex;align-items:center;gap:7px;background:var(--live);color:#fff;font-weight:600;font-size:.72rem;letter-spacing:.08em;padding:4px 9px 4px 8px;border-radius:4px}
+.live i{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.hud .mark{display:flex;align-items:center;height:100%;flex:none}
+.hud .mark img{height:50px;width:auto;filter:drop-shadow(0 0 6px rgba(47,212,255,.35))}
+.clock{margin-left:auto;display:flex;align-items:baseline;gap:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock b{font-weight:500;font-size:1.02rem;color:var(--gold);min-width:5.2em;text-align:right}
+.clock span{font-size:.78rem;color:var(--muted)}
+.viewers{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.viewers b{color:var(--chalk);font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--body);font-weight:600;font-size:.95rem;text-decoration:none;border-radius:6px;padding:13px 22px;border:1px solid transparent;cursor:pointer;transition:transform .15s ease,background-color .15s ease,color .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-gold{background:var(--gold);color:#000}
+.btn-gold:hover{background:#ffd062}
+.btn-line{border-color:#4a515c;color:var(--chalk)}
+.btn-line:hover{border-color:var(--chalk)}
+.hud .btn{padding:8px 14px;font-size:.82rem;white-space:nowrap;flex:none}
+.bar{position:fixed;top:var(--hud);left:0;height:2px;width:100%;z-index:41;background:var(--gold);transform-origin:0 50%;transform:scaleX(0)}
+@media (max-width:720px){.viewers,.clock span{display:none}.hud{gap:12px}.hud .mark img{height:42px}}
+@media (max-width:420px){.hud{gap:8px;padding-left:12px;padding-right:12px}.hud .mark img{height:34px}.hud .btn{padding:8px 10px;font-size:.76rem}.clock b{min-width:0;font-size:.92rem}.live{padding:3px 7px}}
+
+/* ---------- chat rail ---------- */
+.chat{display:none}
+@media (min-width:1180px){
+  .chat{display:flex;flex-direction:column;position:fixed;top:var(--hud);right:0;bottom:0;width:var(--chat);z-index:30;background:var(--night);border-left:1px solid var(--line)}
+  .chat header{padding:12px 16px;border-bottom:1px solid var(--line);font-size:.8rem;font-weight:500;display:flex;justify-content:space-between}
+  .chat header span{color:var(--muted);font-weight:300}
+  .chat ol{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:9px;padding:14px 16px}
+  .chat li{font-size:.84rem;line-height:1.4;animation:msg .32s cubic-bezier(.2,.9,.3,1.2) both}
+  .chat li b{font-weight:600;margin-right:6px}
+  .chat li.sys{color:var(--muted);font-size:.76rem;border-top:1px solid var(--line);padding-top:9px}
+  .chat footer{padding:14px 16px;border-top:1px solid var(--line)}
+  .chat footer .btn{width:100%}
+  @keyframes msg{from{opacity:0;transform:translateY(10px)}}
+}
+main{margin-right:var(--chat);padding-top:var(--hud);overflow-x:clip}
+section{padding:clamp(72px,9vw,124px) var(--pad)}
+.inner{max-width:1120px;margin:0 auto}
+
+/* ---------- hero ---------- */
+.hero{min-height:calc(100svh - var(--hud));display:grid;align-items:center;padding-top:clamp(40px,6vw,80px);padding-bottom:clamp(48px,6vw,80px);position:relative}
+.hero .inner{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:clamp(28px,5vw,72px);align-items:center;width:100%}
+.hero h1{font-size:clamp(2.7rem,6.3vw,5.6rem)}
+.hero h1 em{font-style:normal}
+.hero .lede{margin-top:24px}
+.hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.stage{position:relative;justify-self:center;width:min(100%,340px)}
+.stage::before{content:"";position:absolute;inset:-18% -30%;background:radial-gradient(closest-side,rgba(28,200,220,.34),transparent 72%);z-index:0}
+.clip{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:var(--panel);z-index:1}
+.clip video,.clip img{width:100%;height:100%;object-fit:cover}
+.clip .tag{position:absolute;left:10px;top:10px;z-index:2}
+/* athletic program logo, custom links only: it sits in the light at the end of the tunnel */
+.school-slot{position:absolute;inset:0;z-index:2;display:grid;place-items:center;align-content:center;padding:0 14%;margin-top:-18%;animation:rise 1s cubic-bezier(.2,.8,.2,1) .5s both}
+.school-slot[hidden]{display:none}
+.school-slot img{max-width:100%;max-height:130px;width:auto;filter:drop-shadow(0 6px 22px rgba(0,0,0,.55)) drop-shadow(0 0 30px rgba(255,255,255,.55))}
+.school-slot span{font-family:var(--display);text-transform:uppercase;font-size:clamp(1.8rem,3.4vw,2.6rem);line-height:1;text-align:center;color:#fff;text-shadow:0 0 18px rgba(255,255,255,.8),0 2px 14px rgba(0,0,0,.6)}
+.school-slot.has-logo span{display:none}
+.hero .note{margin-top:22px}
+.rise{animation:rise .8s cubic-bezier(.2,.8,.2,1) both}
+.rise.d1{animation-delay:.12s}.rise.d2{animation-delay:.24s}.rise.d3{animation-delay:.4s}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}}
+@media (max-width:860px){
+  .hero .inner{grid-template-columns:1fr}
+  .stage{width:min(64vw,280px);margin-top:12px}
+}
+
+/* ---------- max ---------- */
+.max .inner{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5vw,72px);align-items:end}
+.max figure{position:relative}
+.max figure::before{content:"";position:absolute;inset:8% -8% 0;background:radial-gradient(closest-side,rgba(28,200,220,.4),transparent 70%)}
+.max figure img{position:relative;width:100%}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:34px clamp(20px,4vw,56px);margin-top:40px}
+.stats dt{font-family:var(--display);font-size:clamp(2.6rem,5.4vw,4.4rem);line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.stats dd{margin:8px 0 0;font-size:.95rem;color:#d9d6cd;max-width:19em;text-wrap:balance}
+.firsts{margin-top:40px;display:grid;gap:10px;font-size:1rem;font-weight:600}
+.firsts li{padding-left:22px;position:relative}
+.firsts li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:9px;border-radius:50%;background:var(--gold)}
+@media (max-width:860px){.max .inner{grid-template-columns:1fr}.max figure{max-width:300px}}
+
+/* ---------- 48 hours ---------- */
+.hours{background:var(--night)}
+.hours .lede{margin-top:18px}
+.reel{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:52px}
+.reel li{min-width:0}
+.reel .when{font-size:.82rem;font-weight:500;color:var(--gold);margin:16px 0 4px}
+.reel h3{font-family:var(--display);text-transform:uppercase;font-weight:400;font-size:1.55rem;line-height:1.05}
+.reel p{font-size:.92rem;color:#cfccc3;margin-top:8px}
+.reel li:nth-child(even){margin-top:44px}
+@media (max-width:900px){
+  .reel{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:68vw;overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:calc(var(--pad) * -1);padding-inline:var(--pad);scrollbar-width:none}
+  .reel li{scroll-snap-align:center}
+  .reel li:nth-child(even){margin-top:0}
+}
+/* neon sign over the night clip: the bar flickers on, then the logo, then both hum and shine */
+.neon{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;padding-top:19%;pointer-events:none;background:radial-gradient(130% 70% at 50% 28%,rgba(0,0,0,0) 30%,rgba(0,0,0,.45))}
+.neon-bar{display:block;width:86%;height:4px;border-radius:3px;background:linear-gradient(90deg,#a24dff,#2fd4ff 38%,#2fd4ff 62%,#c84dff);box-shadow:0 0 4px #2fd4ff,0 0 14px rgba(47,212,255,.9),0 0 34px rgba(162,77,255,.7);opacity:0}
+.neon-logo{position:relative;width:90%;margin-top:16%;opacity:0}
+.neon-logo img{width:100%;filter:drop-shadow(0 0 3px rgba(47,212,255,.9)) drop-shadow(0 0 14px rgba(47,212,255,.5)) drop-shadow(0 0 34px rgba(162,77,255,.4))}
+.neon-logo::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%) no-repeat;background-size:300% 100%;background-position:120% 0;-webkit-mask:url(/pbm/ct-logo.webp) center/100% 100% no-repeat;mask:url(/pbm/ct-logo.webp) center/100% 100% no-repeat;mix-blend-mode:screen;opacity:.8}
+.neon.lit .neon-bar{animation:flick 1.4s linear forwards,hum 2.8s ease-in-out 1.4s infinite}
+.neon.lit .neon-logo{animation:flick 1.8s linear .45s forwards}
+.neon.lit .neon-logo img{animation:glow 2.8s ease-in-out 2.3s infinite}
+.neon.lit .neon-logo::after{animation:sheen 5s ease-in-out 2.4s infinite}
+@keyframes flick{0%{opacity:0}5%{opacity:1}8%{opacity:.05}13%{opacity:.85}16%{opacity:.1}24%{opacity:1}28%{opacity:.35}33%,100%{opacity:1}}
+@keyframes hum{0%,100%{opacity:1}50%{opacity:.78}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 3px rgba(47,212,255,.9)) drop-shadow(0 0 14px rgba(47,212,255,.5)) drop-shadow(0 0 34px rgba(162,77,255,.4))}50%{filter:drop-shadow(0 0 5px rgba(47,212,255,1)) drop-shadow(0 0 22px rgba(47,212,255,.75)) drop-shadow(0 0 48px rgba(162,77,255,.6)) brightness(1.12)}}
+@keyframes sheen{0%{background-position:120% 0}45%,100%{background-position:-20% 0}}
+.tag{display:inline-block;font-size:.68rem;font-weight:500;background:rgba(0,0,0,.72);color:var(--chalk);padding:3px 8px;border-radius:4px}
+
+/* ---------- proof ---------- */
+.proof ol{margin-top:56px;display:grid;gap:0}
+.proof li{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,.85fr) minmax(0,1.3fr);gap:clamp(20px,4vw,56px);padding:38px 0;border-top:1px solid var(--line);align-items:center}
+.vis{min-width:0}
+.vis .photo{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px}
+.photo-wrap{position:relative;margin-right:14px}
+.photo-wrap .face{position:absolute;right:-14px;bottom:-16px;width:42%;border-radius:50%;border:3px solid var(--gold);box-shadow:0 10px 26px rgba(0,0,0,.6)}
+.lockup{display:flex;align-items:center;gap:14px}
+.lockup img:first-child{width:52%;border-radius:10px}
+.lockup img:last-child{width:38%}
+.lockup span{font-size:1.5rem;color:var(--muted);font-weight:300}
+.lockup.sm{width:min(100%,300px)}
+.brandmark{display:grid;place-items:center;aspect-ratio:16/10;border-radius:10px;background:#fff;padding:12% 14%}
+.brandmark img{max-width:100%;max-height:100%;width:auto}
+.brandmark span{display:none}
+.brandmark.nologo span{display:block;text-align:center;color:#000;font-weight:600;font-size:clamp(1.4rem,2.2vw,1.9rem);line-height:1.1}
+.brandmark.nologo small{display:block;font-weight:400;font-size:.85rem;color:#555;margin-top:8px}
+.proof li:last-child{border-bottom:1px solid var(--line)}
+.proof .fig{font-family:var(--display);font-size:clamp(3rem,5vw,4.8rem);line-height:.9;font-variant-numeric:tabular-nums}
+.proof .fig small{display:block;font-family:var(--body);font-weight:300;font-size:.92rem;line-height:1.4;color:var(--muted);margin-top:12px;max-width:16em}
+.proof h3{font-weight:500;font-size:1.3rem;line-height:1.3}
+.proof p{margin-top:10px;color:#d9d6cd;max-width:36em}
+.proof .hot .fig{color:var(--gold)}
+@media (max-width:820px){.proof li{grid-template-columns:1fr;gap:18px}.vis{max-width:360px}}
+
+/* ---------- wins ---------- */
+.wins{background:var(--night)}
+h2.h-mid{font-size:clamp(1.9rem,3.6vw,3rem)}
+.named{display:flex;flex-wrap:wrap;align-items:center;gap:14px 28px;margin-top:26px}
+.named{position:relative}
+.wins .wins-named{margin:0;color:var(--chalk);font-family:var(--display);text-transform:uppercase;font-weight:400;font-size:1.9rem;line-height:1.05}
+.scrawl{width:150px;height:auto;color:var(--gold);margin:6px 0 -64px -6px;align-self:flex-start;overflow:visible}
+.scrawl path{stroke-dasharray:1;stroke-dashoffset:1}
+.scrawl.drawn .s1{animation:draw .9s cubic-bezier(.5,0,.3,1) forwards}
+.scrawl.drawn .s2{animation:draw .3s ease-out .85s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (max-width:820px){.scrawl{width:96px;margin:0 0 -30px 0}}
+.wins ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,4vw,56px);margin-top:64px}
+.wins h3{font-family:var(--display);text-transform:uppercase;font-weight:400;font-size:1.9rem;line-height:1.05}
+.wins p{margin-top:12px;color:#d9d6cd;font-size:.98rem}
+.wins strong{color:var(--gold);font-weight:500}
+@media (max-width:820px){.wins ul{grid-template-columns:1fr}}
+
+/* ---------- sell ---------- */
+.sell .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);margin-top:52px;align-items:start}
+/* raised keys: unselected sit up on a dark base; the selected one is pressed in */
+.tabs{display:grid;gap:12px}
+.tabs button{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:15px 18px;border-radius:10px;
+  background:linear-gradient(180deg,#232a35,#161b23);border:1px solid #303845;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 5px 0 #05070a,0 9px 18px rgba(0,0,0,.55);
+  transform:translateY(0);transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.tabs button:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 7px 0 #05070a,0 13px 22px rgba(0,0,0,.6)}
+.tabs button:active{transform:translateY(4px);box-shadow:inset 0 2px 6px rgba(0,0,0,.5),0 1px 0 #05070a}
+.tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.tabs button b{display:block;font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:1.35rem;line-height:1.1}
+.tabs button span{display:none;font-size:.92rem;color:#2a1d00;margin-top:6px}
+.tabs button[aria-selected="true"]{color:#000;border-color:#b98000;transform:translateY(4px);
+  background:linear-gradient(180deg,#d99a0f,#ffb81c 55%,#ffc444);
+  box-shadow:inset 0 3px 8px rgba(80,45,0,.55),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 0 #5a3d00}
+.tabs button[aria-selected="true"] span{display:block}
+.shots{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--panel)}
+.shots img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .45s ease}
+.shots img.on{opacity:1}
+.shots .tag{position:absolute;left:12px;bottom:12px;z-index:2}
+.sell .price{margin-top:28px}
+.detail{background:var(--night)}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);gap:clamp(28px,5vw,72px);align-items:center}
+@media (max-width:820px){.detail-grid{grid-template-columns:1fr}.detail-clip{width:min(70vw,280px)}}
+.gets-lead{margin-top:34px;font-weight:500}
+.price{margin-top:30px;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 20px}
+.price b{font-family:var(--display);font-weight:400;font-size:clamp(2.4rem,5vw,3.8rem);color:var(--gold);line-height:1}
+.price span{max-width:26em;color:#d9d6cd}
+.gets{margin-top:12px;columns:2;column-gap:40px;font-size:.95rem;color:#d9d6cd;max-width:44em}
+.gets li{break-inside:avoid;padding:5px 0 5px 20px;position:relative}
+.gets li::before{content:"";position:absolute;left:0;top:.95em;width:8px;height:2px;background:var(--gold)}
+@media (max-width:820px){.sell .grid{grid-template-columns:1fr}.shots{order:-1}.gets{columns:1}}
+
+/* ---------- deal ---------- */
+.deal{background:var(--gold);color:#000}
+.deal .top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(20px,5vw,64px);align-items:end}
+.deal .zero{font-family:var(--display);font-size:clamp(7rem,22vw,17rem);line-height:.8}
+.deal h2{font-size:clamp(1.9rem,4.4vw,3.6rem)}
+.deal .top p{margin-top:14px;font-weight:400;max-width:28em}
+.deal .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(24px,5vw,64px);margin-top:56px;border-top:2px solid #000;padding-top:30px}
+.deal h3{font-weight:600;font-size:1.05rem;margin-bottom:10px}
+.deal li{padding:9px 0;border-bottom:1px solid rgba(0,0,0,.22);font-weight:400;font-size:.98rem}
+.deal .delivery{display:flex;flex-wrap:wrap;gap:20px clamp(28px,6vw,80px);margin-top:48px}
+.deal .delivery b{display:block;font-family:var(--display);font-weight:400;font-size:clamp(2.2rem,4.6vw,3.6rem);line-height:1}
+.deal .delivery span{font-size:.9rem;font-weight:400}
+.deal .note{color:rgba(0,0,0,.7);margin-top:22px}
+@media (max-width:720px){.deal .top,.deal .cols{grid-template-columns:1fr}}
+
+/* ---------- timing ---------- */
+.when-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}
+.when-row li{padding:26px 22px 0 0;position:relative}
+.when-row li::before{content:"";position:absolute;top:-6px;left:0;width:11px;height:11px;border-radius:50%;background:var(--gold)}
+.when-row time{font-size:.86rem;color:var(--gold);font-weight:500}
+.ev{height:130px;display:flex;align-items:flex-end;gap:12px;margin:8px 0 18px}
+.ev img{max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;min-width:0}
+.ev img:only-child{max-width:92%}
+.ev .tile{border-radius:8px;max-height:96px}
+.timing sup{color:var(--gold);font-size:.5em;vertical-align:top;margin-left:2px}
+.disclaim{margin-top:40px}
+.when-row h3{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:1.6rem;line-height:1.05;margin-top:6px}
+@media (max-width:760px){.when-row{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:34px;border-top:0}.when-row li{border-top:1px solid var(--line)}}
+
+/* ---------- close ---------- */
+.close{position:relative;min-height:92svh;display:grid;align-items:end;overflow:hidden}
+.close video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.close::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.86) 70%);z-index:1}
+.close .inner{position:relative;z-index:2;width:100%}
+.close h2{font-size:clamp(2.6rem,7vw,6rem);max-width:12em}
+.close .cta{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px}
+.team{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(20px,4vw,56px);margin-top:64px;padding-top:26px;border-top:1px solid rgba(255,255,255,.3);max-width:880px}
+.team h3{font-weight:500;font-size:1.05rem}
+.team p{font-size:.92rem;color:#d9d6cd;margin-top:6px}
+@media (max-width:640px){.team{grid-template-columns:1fr}}
+footer.legal{margin-right:var(--chat);padding:28px var(--pad) 44px;font-size:.76rem;color:var(--muted);line-height:1.6;border-top:1px solid var(--line)}
+footer.legal p{max-width:70em}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rise,.chat li,.live i{animation:none}
+  .shots img,.btn,.tabs button{transition:none}
+  .neon-bar,.neon-logo{opacity:1;animation:none!important}
+  .scrawl path{stroke-dashoffset:0!important;animation:none!important}
+  .neon-logo img,.neon-logo::after,.school-slot{animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="hud" role="banner">
+  <span class="live"><i></i>LIVE</span>
+  <a class="mark" href="#top"><img src="/pbm/ct-logo.webp" width="900" height="509" alt="Campus Takeover 48 Hour Live"></a>
+  <div class="clock" aria-hidden="true"><b id="clock">00:00:00</b><span>of 48 hours</span></div>
+  <div class="viewers" aria-hidden="true"><b id="viewers">87,204</b> watching</div>
+  <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Ask about hosting</a>
+</div>
+<div class="bar" id="bar" aria-hidden="true"></div>
+
+<aside class="chat" aria-hidden="true">
+  <header>Stream chat <span>mock-up</span></header>
+  <ol id="chat"></ol>
+  <footer><a class="btn btn-gold" data-contact tabindex="-1" href="https://calendly.com/joesarge">Ask about hosting</a></footer>
+</aside>
+
+<main id="top">
+
+<section class="hero" data-chat="hero">
+  <div class="inner">
+    <div>
+      <h1 class="display rise">PlaqueBoyMax moves into <em data-school="{s} Athletics">your athletics program</em> for 48 hours.</h1>
+      <p class="lede rise d1">One of the biggest streamers in the country lives with your team, live on Twitch. It costs your school $0, and you keep what you sell.</p>
+      <div class="cta rise d2">
+        <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Ask about hosting</a>
+        <a class="btn btn-line" href="#hours">See the 48 hours</a>
+      </div>
+      <p class="note rise d3">Concept renders shown throughout. Your campus, your colors and your players go here.</p>
+    </div>
+    <div class="stage rise d2">
+      <div class="clip">
+        <span class="tag">Concept render</span>
+        <video muted loop playsinline preload="metadata" poster="/pbm/tunnel.jpg" data-autoplay><source src="/pbm/tunnel.mp4" type="video/mp4"></video>
+        <!-- Athletic program logo: shows only in custom links, e.g. ?school=Auburn&logo=auburn.png (file goes in pbm/schools/) -->
+        <div class="school-slot" id="schoolSlot" hidden><img id="schoolLogo" alt=""><span id="schoolName"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="max" id="max" data-chat="max">
+  <div class="inner">
+    <figure><img src="/pbm/max.webp" width="640" height="800" alt="PlaqueBoyMax" loading="lazy"></figure>
+    <div>
+      <p class="kicker">Meet Max</p>
+      <h2 class="display">He's the culture right now, and he plays</h2>
+      <dl class="stats">
+        <div><dt data-count="2.8" data-dec="1" data-suffix="MM">2.8MM</dt><dd>followers on Twitch, plus<br>1.8MM on YouTube</dd></div>
+        <div><dt data-count="25" data-suffix="MM+">25MM+</dt><dd>combined views of the Streamer Univ. basketball game and its clips</dd></div>
+        <div><dt data-count="87" data-suffix="K">87K</dt><dd>average concurrent viewers<br>during that game</dd></div>
+        <div><dt data-count="449" data-suffix="K+">449K+</dt><dd>likes on his 1v1 against<br>Klay Thompson</dd></div>
+      </dl>
+      <ul class="firsts">
+        <li>The first Twitch streamer nominated for a Grammy</li>
+        <li>#10 on the Complex Hip Hop Media Power Ranking</li>
+        <li>Breakout star and "People's MVP" of Streamer University '26</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="hours" id="hours" data-chat="hours">
+  <div class="inner">
+    <p class="kicker">The concept</p>
+    <h2 class="display">2 Days. 1 Stream.<br>Your program on camera</h2>
+    <p class="lede">Max doesn't visit. He moves in. The stream stays live for 48 hours, and the best moments become clips on Twitch, TikTok, Reels and Shorts.</p>
+    <ol class="reel">
+      <li>
+        <div class="clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/arrival.jpg" data-autoplay><source src="/pbm/arrival.mp4" type="video/mp4"></video></div>
+        <p class="when">Day 1, morning</p><h3>The arrival</h3><p>Max lands on campus. Your students find out from the stream.</p>
+      </li>
+      <li>
+        <div class="clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/locker.jpg" data-autoplay><source src="/pbm/locker.mp4" type="video/mp4"></video></div>
+        <p class="when">Day 1, afternoon</p><h3>Inside the program</h3><p>Locker room, facilities, coaches. Chat meets your players one by one.</p>
+      </li>
+      <li>
+        <div class="clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/field.jpg" data-autoplay><source src="/pbm/field.mp4" type="video/mp4"></video>
+          <div class="neon" id="neon" aria-hidden="true"><i class="neon-bar"></i><div class="neon-logo"><img src="/pbm/ct-logo.webp" width="900" height="509" alt=""></div></div>
+        </div>
+        <p class="when">Day 1, night</p><h3>Campus after dark</h3><p>The stream doesn't stop when practice does. Neither does campus.</p>
+      </li>
+      <li>
+        <div class="clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/dash.jpg" data-autoplay><source src="/pbm/dash.mp4" type="video/mp4"></video></div>
+        <p class="when">Day 2</p><h3>Player for a day</h3><p>Max runs your drills and takes on your athletes in the Campus Challenge.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="proof" id="proof" data-chat="proof">
+  <div class="inner">
+    <p class="kicker">Proof</p>
+    <h2 class="display">This already works. Nobody has claimed college sports yet</h2>
+    <ol>
+      <li>
+        <div class="fig"><span data-count="122" data-suffix="%">122%</span><small>spike in Google searches and traffic around the host school</small></div>
+        <div class="vis"><div class="lockup"><img src="/pbm/hendrix.jpg" width="331" height="232" alt="Hendrix College" loading="lazy"><span aria-hidden="true">×</span><img src="/pbm/streamer-u.webp" width="420" height="420" alt="Streamer University" loading="lazy"></div></div>
+        <div><h3>A small college in Arkansas hosted the internet for five days</h3>
+        <p>Hendrix College became Streamer University, Kai Cenat's creator bootcamp. The event drew 45.3 million hours watched. Hendrix named three wins: student learning, cultural alignment and global exposure.</p></div>
+      </li>
+      <li>
+        <div class="fig"><span data-count="28.8" data-dec="1" data-suffix="MM">28.8MM</span><small>views across a 10-episode college tour series</small></div>
+        <div class="vis"><div class="photo-wrap"><img class="photo" src="/pbm/deestroying.jpg" width="960" height="540" alt="Deestroying's college tour series" loading="lazy"><img class="face" src="/pbm/deestroying-face.webp" width="360" height="360" alt="Deestroying" loading="lazy"></div></div>
+        <div><h3>Deestroying toured D1 programs for a day each</h3>
+        <p>His top episode reached 4.4MM views. Those visits were pre-recorded, with no sponsors. Campus Takeover is live for 48 hours, with sponsor inventory and competitions built in.</p></div>
+      </li>
+      <li class="hot">
+        <div class="fig"><span data-count="53" data-suffix="M+">53M+</span><small>views across four seasons of State Farm's creator series</small></div>
+        <!-- Drop the State Farm logo in as pbm/statefarm.png. Until then a text card shows. -->
+        <div class="vis"><div class="brandmark"><img src="/pbm/statefarm.png" alt="State Farm" loading="lazy" onerror="this.parentNode.classList.add('nologo');this.remove()"><span>State Farm<small>Gamerhood, Season 5</small></span></div></div>
+        <div><h3>State Farm already pays to reach this audience, and Max is in the cast</h3>
+        <p>State Farm built "Gamerhood" around streamers and put PlaqueBoyMax in its Season 5 lineup. The brand also partnered with Streamer University. National sponsors are in this space now. Local ones follow.</p></div>
+      </li>
+    </ol>
+    <p class="note" style="margin-top:22px">Sources: Hendrix College impact study on Streamer University; Deestroying's YouTube series; <a href="https://www.netinfluencer.com/state-farm-taps-ishowspeed-to-headline-gamerhood-season-5/" rel="noopener">Net Influencer</a>; <a href="https://digiday.com/media/kai-cenats-streamer-u-was-a-masterclass-for-brands-looking-to-tap-content-creators/" rel="noopener">Digiday</a>.</p>
+  </div>
+</section>
+
+<section class="wins" id="wins" data-chat="wins">
+  <div class="inner">
+    <h2 class="display h-mid">What your Athletic Department gets</h2>
+    <div class="named">
+      <div class="lockup sm"><img src="/pbm/hendrix.jpg" width="331" height="232" alt="Hendrix College" loading="lazy"><span aria-hidden="true">×</span><img src="/pbm/streamer-u.webp" width="420" height="420" alt="Streamer University" loading="lazy"></div>
+      <p class="wins-named">3 wins named by Hendrix</p>
+      <svg class="scrawl" id="scrawl" viewBox="0 0 170 130" aria-hidden="true">
+        <defs><filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter></defs>
+        <g filter="url(#rough)" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+          <path class="s1" pathLength="1" d="M6 22 C 48 4, 118 6, 138 40 C 156 72, 132 100, 98 118"/>
+          <path class="s2" pathLength="1" d="M108 98 L 96 119 L 121 123"/>
+        </g>
+      </svg>
+    </div>
+    <ul>
+      <li><h3>Student learning</h3><p><strong>8 student spots</strong> on the production crew. Real reps for students who want careers in sports and media.</p></li>
+      <li><h3>Recruiting</h3><p>Your facilities, your culture and your NIL creativity, on the feeds your recruits already watch.</p></li>
+      <li><h3>Revenue</h3><p>A reserved sponsor package and NIL inventory. <strong>Your team sells it. Your program keeps it.</strong></p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sell" id="sell" data-chat="sell">
+  <div class="inner">
+    <p class="kicker">What you can sell</p>
+    <h2 class="display">Your local partners get a segment, not a logo slap</h2>
+    <div class="price"><b>$10K–$100K</b><span>per Campus Partner, based on your inventory and your market. Reserved for your school to sell.</span></div>
+    <div class="grid">
+      <div class="tabs" role="tablist" aria-label="Local partner categories">
+        <button role="tab" aria-selected="true" data-shot="food"><b>Restaurants and food</b><span>The eating challenge, with a wall of fame that stays up after Max leaves.</span></button>
+        <button role="tab" aria-selected="false" data-shot="auto"><b>Auto dealers</b><span>The arrival. Max pulls up to campus in the dealer's car.</span></button>
+        <button role="tab" aria-selected="false" data-shot="finance"><b>Banks and credit unions</b><span>Financial Literacy 101, taught to a full classroom and a full chat.</span></button>
+        <button role="tab" aria-selected="false" data-shot="recovery"><b>Healthcare and recovery</b><span>The cold plunge. Your training room, their name on the tub.</span></button>
+        <button role="tab" aria-selected="false" data-shot="retail"><b>Retailers and local business</b><span>The bookstore meet-up, with a line out the door.</span></button>
+      </div>
+      <div class="shots" id="shots">
+        <span class="tag">Concept render</span>
+        <img class="on" data-shot="food" src="/pbm/food.jpg" alt="Concept render: Max holds a burger challenge plaque at a local restaurant" loading="lazy">
+        <img data-shot="auto" src="/pbm/auto.jpg" alt="Concept render: Max arrives on campus beside a dealer-branded convertible" loading="lazy">
+        <img data-shot="finance" src="/pbm/finance.jpg" alt="Concept render: Max teaches a financial literacy class" loading="lazy">
+        <img data-shot="recovery" src="/pbm/recovery.jpg" alt="Concept render: Max in a cold plunge tub in the training room" loading="lazy">
+        <img data-shot="retail" src="/pbm/retail.jpg" alt="Concept render: Max meets students in the campus bookstore" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="detail" id="detail">
+  <div class="inner detail-grid">
+    <div>
+    <h2 class="display h-mid">Local market detail</h2>
+    <div class="price"><b>$10K–$100K</b><span>per Campus Partner, based on your inventory and your market. Reserved for your school to sell.</span></div>
+    <p class="gets-lead">Every Campus Partner package includes:</p>
+    <ul class="gets">
+      <li>One sponsored segment in the stream</li>
+      <li>Sponsor recognition in the promo</li>
+      <li>On-campus activation and sampling</li>
+      <li>A sponsored giveaway or competition</li>
+      <li>1 to 3 social posts from your school</li>
+      <li>Athlete appearances, where NIL is contracted</li>
+      <li>Local hospitality or ticketing</li>
+      <li>A campaign recap for each sponsor</li>
+    </ul>
+    </div>
+    <div class="clip detail-clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/arrival.jpg" data-autoplay><source src="/pbm/arrival.mp4" type="video/mp4"></video></div>
+  </div>
+</section>
+
+<section class="deal" id="deal" data-chat="deal">
+  <div class="inner">
+    <div class="top">
+      <div class="zero display" aria-hidden="true">$0</div>
+      <div>
+        <h2 class="display"><span data-school="{s} hosts.">Your school hosts.</span><br>Zero fee.</h2>
+        <p>You open the doors. We bring the talent, the production and the audience.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>You get</h3>
+        <ul>
+          <li>A reserved sponsor package to sell</li>
+          <li>2 NIL spots to sell, with athlete posts and a featured segment</li>
+          <li>10 talent mentions across the week</li>
+          <li>8 student spots for hands-on production experience</li>
+          <li>An on-site activation for the student body</li>
+          <li>PR and media inclusion, plus a post-campaign report</li>
+        </ul>
+      </div>
+      <div>
+        <h3>We ask</h3>
+        <ul>
+          <li>Official facility access and security</li>
+          <li>Pass-through brand usage rights</li>
+          <li>NIL coordination</li>
+          <li>4 social posts from official Athletics channels</li>
+        </ul>
+      </div>
+    </div>
+    <div class="delivery">
+      <div><b>8–15M</b><span>projected impressions per stream</span></div>
+      <div><b>2–5M</b><span>projected video views</span></div>
+      <div><b>72%</b><span>of the audience is under 34</span></div>
+    </div>
+    <p class="note">Projections are based on current audience performance and comparable Max streams. Actual results will vary.</p>
+  </div>
+</section>
+
+<section class="timing" id="timing" data-chat="timing">
+  <div class="inner">
+    <p class="kicker">Timing</p>
+    <h2 class="display">Pick the moment your campus is loudest<sup>*</sup></h2>
+    <ol class="when-row">
+      <li><div class="ev"><img src="/pbm/events/cfp.jpg" width="700" height="431" alt="College Football Playoff National Championship, Las Vegas 2027" loading="lazy"></div><time>Dec 18 – Jan 25</time><h3>Bowl and CFP season</h3></li>
+      <li><div class="ev"><img src="/pbm/events/ff-women.webp" width="360" height="551" alt="2027 Women's Final Four, Columbus" loading="lazy"><img src="/pbm/events/ff-men.webp" width="360" height="386" alt="2027 Men's Final Four, Detroit" loading="lazy"></div><time>Mar 18 – Apr 5</time><h3>March Madness</h3></li>
+      <li><div class="ev"><img class="tile" src="/pbm/events/spring-football.jpg" width="760" height="428" alt="College football spring games" loading="lazy"></div><time>Mid to late April</time><h3>Spring games</h3></li>
+      <li><div class="ev"><img src="/pbm/events/track-field.webp" width="400" height="337" alt="2027 NCAA Division I Track and Field Championships, Eugene" loading="lazy"></div><time>June 12</time><h3>NCAA Track and Field</h3></li>
+    </ol>
+    <p class="note disclaim">*Campus Takeover is not affiliated with these championships or their organizers. Event marks appear only to identify the events.</p>
+  </div>
+</section>
+
+<section class="close" id="host" data-chat="close">
+  <video muted loop playsinline preload="none" poster="/pbm/field.jpg" data-autoplay aria-hidden="true"><source src="/pbm/field.mp4" type="video/mp4"></video>
+  <div class="inner">
+    <h2 class="display">Culture and sports collide once. Will you own the moment?</h2>
+    <div class="cta">
+      <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Book 20 minutes about hosting</a>
+    </div>
+    <div class="team">
+      <div><h3>Jeff Anderson, Executive Producer</h3><p>JDA Media. Emmy winner with 18 years at ESPN. Creator-native and broadcast-trained, with NIL and college sports expertise.</p></div>
+      <div><h3>Joe Sargent, Producer</h3><p>Sargent Worx. 15 years in brand and sports marketing with Miller Lite, Coors Light, EFFEN Vodka, the Kansas City Chiefs and the Atlanta Dream.</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="legal">
+  <p>Campus Takeover is an original live sports entertainment property created by JDA Media and produced by JDA Media and Sargent Worx. The format, production, sponsorship platform and commercial rights are subject to talent and school agreements. Images and clips on this page are concept renders. School names and marks appear for illustration only and do not show a partnership. The stream overlay and chat are mock-ups.</p>
+</footer>
+
+<script>
+/* ---------- CONFIG: edit here ---------- */
+const CONFIG = {
+  contactUrl: "https://calendly.com/joesarge",   // every "Ask about hosting" button
+  hours: 48
+};
+/* Personalize a link: /pbmschools?school=Auburn  (add &logo=auburn.png after you put the file in pbm/schools/) */
+
+(function(){
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+
+  $$("[data-contact]").forEach(a => a.href = CONFIG.contactUrl);
+
+  // Personalization: text only, never HTML.
+  const school = (new URLSearchParams(location.search).get("school") || "").replace(/[<>]/g,"").trim().slice(0,40);
+  if (school){
+    $$("[data-school]").forEach(el => el.textContent = el.dataset.school.replace("{s}", school));
+    document.title = "Campus Takeover × " + school;
+    // Logo over the tunnel. Only plain file names from pbm/schools/ are accepted.
+    const slot = $("#schoolSlot"), logo = (new URLSearchParams(location.search).get("logo") || "").trim();
+    $("#schoolName").textContent = school;
+    if (/^[\w-]+\.(png|webp|svg|jpe?g)$/i.test(logo)){
+      const img = $("#schoolLogo");
+      img.alt = school + " Athletics";
+      img.onload = () => slot.classList.add("has-logo");
+      img.onerror = () => img.remove();
+      img.src = "/pbm/schools/" + logo;
+    } else { $("#schoolLogo").remove(); }
+    slot.hidden = false;
+  }
+
+  // Hand-drawn arrow on the AD slide draws itself once.
+  const scrawl = $("#scrawl");
+  if (scrawl){
+    if (reduce || !("IntersectionObserver" in window)) scrawl.classList.add("drawn");
+    else { const ao = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ scrawl.classList.add("drawn"); ao.disconnect(); } }), {threshold:.8}); ao.observe(scrawl); }
+  }
+
+  // Neon sign over the night clip lights up the first time it is on screen.
+  const neon = $("#neon");
+  if (neon){
+    if (reduce || !("IntersectionObserver" in window)) neon.classList.add("lit");
+    else {
+      const no = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ neon.classList.add("lit"); no.disconnect(); } }), {threshold:.55});
+      no.observe(neon);
+    }
+  }
+
+  // The 48-hour clock runs with the scroll position.
+  const clock = $("#clock"), bar = $("#bar");
+  const pad = n => String(n).padStart(2,"0");
+  let ticking = false;
+  function tick(){
+    ticking = false;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+    const s = Math.round(p * CONFIG.hours * 3600);
+    clock.textContent = pad(Math.floor(s/3600)) + ":" + pad(Math.floor(s%3600/60)) + ":" + pad(s%60);
+    bar.style.transform = "scaleX(" + p + ")";
+  }
+  addEventListener("scroll", () => { if(!ticking){ ticking = true; requestAnimationFrame(tick); } }, {passive:true});
+  addEventListener("resize", tick);
+  tick();
+
+  // Mock viewer count drifts around the real 87K average.
+  const viewers = $("#viewers"); let v = 87204;
+  if (!reduce) setInterval(() => { v += Math.round((Math.random()-.45)*60); viewers.textContent = v.toLocaleString("en-US"); }, 1800);
+
+  // Clips play only while they are on screen.
+  const vids = $$("video[data-autoplay]");
+  if (!reduce && "IntersectionObserver" in window){
+    const vo = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) e.target.play().catch(()=>{}); else e.target.pause();
+    }), {threshold:.25});
+    vids.forEach(v => vo.observe(v));
+  }
+
+  // Numbers count up once, when the reader reaches them.
+  function countUp(el){
+    const end = parseFloat(el.dataset.count), dec = +(el.dataset.dec||0), suf = el.dataset.suffix||"";
+    const t0 = performance.now(), dur = 1100;
+    (function step(t){
+      const k = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-k,3);
+      el.textContent = (end*e).toFixed(dec) + suf;
+      if (k<1) requestAnimationFrame(step);
+    })(t0);
+  }
+  if (!reduce && "IntersectionObserver" in window){
+    const co = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ countUp(e.target); co.unobserve(e.target); } }), {threshold:.6});
+    $$("[data-count]").forEach(el => co.observe(el));
+  }
+
+  // Sponsor category switcher.
+  const tabs = $$(".tabs button"), shots = $$("#shots img");
+  function pick(btn){
+    tabs.forEach(b => b.setAttribute("aria-selected", b===btn ? "true" : "false"));
+    shots.forEach(i => i.classList.toggle("on", i.dataset.shot===btn.dataset.shot));
+  }
+  tabs.forEach((b,i) => {
+    b.tabIndex = 0;
+    b.addEventListener("click", () => pick(b));
+    b.addEventListener("keydown", e => {
+      if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(b); }
+      if (e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); const n = tabs[(i+(e.key==="ArrowDown"?1:-1)+tabs.length)%tabs.length]; n.focus(); pick(n); }
+    });
+  });
+
+  // Mock chat reacts to each section.
+  const SCRIPT = {
+    hero:  [["campusfan22","wait is he actually on campus??"],["dormroom_dj","W school"],["hoopdreamz","48 HOURS?? i'm not sleeping"]],
+    max:   [["clipfarmer","first Grammy nom from Twitch btw"],["bucketz4","he gave Klay WORK"],["sys","New follower goal reached"]],
+    hours: [["section_c","RUN THE 40 MAX"],["o_line_mom","that's my son's locker!!"],["nightowl","campus after dark goes crazy"],["recruit_27","adding this school to my list"]],
+    proof: [["mktg_major","Hendrix got 122%?? from one week"],["jake_fan","State Farm stays in the chat"]],
+    wins:  [["film_student","how do I get on the production crew"],["recruit_27","the facilities though"]],
+    sell:  [["hungry_frosh","I need that burger challenge"],["townie_tom","my dealership should do this"],["sys","Segment presented by your local partner"]],
+    deal:  [["athletics_dad","wait, the school pays $0??"],["clipfarmer","and they keep the sponsor money. W"]],
+    timing:[["bracket_szn","March Madness takeover. please."]],
+    close: [["campusfan22","bring it to OUR campus"],["sys","Your school could be next"]]
+  };
+  const HUES = ["#ffb81c","#1cc8dc","#b392ff","#ff7a59","#7ddc7a","#ff8fc7"];
+  const list = $("#chat"); const seen = new Set();
+  function say(user, text, delay){
+    setTimeout(() => {
+      const li = document.createElement("li");
+      if (user==="sys"){ li.className = "sys"; li.textContent = text; }
+      else { const b = document.createElement("b"); b.textContent = user; b.style.color = HUES[user.length % HUES.length]; li.append(b, document.createTextNode(text)); }
+      list.append(li);
+      while (list.children.length > 16) list.firstElementChild.remove();
+    }, reduce ? 0 : delay);
+  }
+  if (list && "IntersectionObserver" in window){
+    const so = new IntersectionObserver(es => es.forEach(e => {
+      const k = e.target.dataset.chat;
+      if (e.isIntersecting && !seen.has(k)){ seen.add(k); (SCRIPT[k]||[]).forEach((m,i) => say(m[0], m[1], 500 + i*900)); }
+    }), {threshold:.3});
+    $$("[data-chat]").forEach(s => so.observe(s));
+  }
+})();
+</script>
+</body>
+</html>
