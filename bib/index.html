@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Beyond the Crown: Beauty 4U × the cast of Tyler Perry's Beauty in Black</title>
+<meta name="description" content="A cast-led beauty experience inside a Beauty 4U store. Conversation, community and commerce. One store pilot from $25K.">
+<meta property="og:title" content="Beyond the Crown: Beauty 4U × the cast of Beauty in Black">
+<meta property="og:description" content="The cast of Netflix's #1 drama about a hair-care empire, inside a Beauty 4U store. One store pilot from $25K.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.joesarge.com/bib/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Lexend:wght@300;400;500;600&display=swap">
+<style>
+/*
+  Beyond the Crown, Beauty 4U view.
+  Concept: the page is the guest list. The overlay counts RSVPs toward a 100-guest
+  store pilot as the reader scrolls, and a guest-list rail fills in by section.
+  Edit the CONFIG block in the script at the bottom to change the contact link.
+*/
+:root{
+  --ink:#0b0709;
+  --night:#140c11;
+  --panel:#1d1219;
+  --line:#33222c;
+  --cream:#f3ece2;
+  --muted:#a99aa2;
+  --gold:#d6aa5c;
+  --gold2:#efcf8e;
+  --plum:#4a1d33;
+  --red:#c8102e;
+  --display:"Cormorant Garamond","Didot","Bodoni 72",Georgia,serif;
+  --body:"Lexend",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --hud:64px;
+  --rail:0px;
+  --pad:clamp(20px,5vw,72px);
+}
+@media (min-width:1180px){:root{--rail:304px}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--hud) + 12px)}
+body{margin:0;background:var(--ink);color:var(--cream);font-family:var(--body);font-weight:300;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img,video,iframe{display:block;max-width:100%}
+img{height:auto}
+a{color:inherit}
+h1,h2,h3,p,ul,ol,figure,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.display{font-family:var(--display);font-weight:600;letter-spacing:-.005em;line-height:.98}
+.display em{font-style:italic;color:var(--gold2)}
+h2.display{font-size:clamp(2.3rem,5.2vw,4.4rem)}
+.lede{font-size:clamp(1.05rem,1.5vw,1.25rem);max-width:34em;color:#ddd3c8}
+.kicker{font-weight:500;color:var(--gold);font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+.note{font-size:.8rem;color:var(--muted)}
+.note a{text-underline-offset:3px}
+.tag{display:inline-block;font-size:.68rem;font-weight:500;background:rgba(0,0,0,.72);color:var(--cream);padding:3px 8px;border-radius:4px}
+.tag.tag-real{background:var(--gold);color:#000;font-weight:600}
+
+/* ---------- guest-list overlay ---------- */
+.hud{position:fixed;inset:0 0 auto 0;height:var(--hud);z-index:40;display:flex;align-items:center;gap:18px;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));background:rgba(11,7,9,.84);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.rsvp{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--gold);color:var(--gold2);font-weight:600;font-size:.68rem;letter-spacing:.12em;padding:4px 9px 4px 8px;border-radius:999px;white-space:nowrap}
+.rsvp i{width:7px;height:7px;border-radius:50%;background:var(--gold2);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.mark{font-family:var(--display);font-weight:700;font-size:1.45rem;letter-spacing:.02em;text-decoration:none;white-space:nowrap;line-height:1}
+.mark small{font-family:var(--body);font-weight:400;font-size:.7rem;color:var(--muted);letter-spacing:.04em;margin-left:8px}
+.count{margin-left:auto;display:flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.count b{font-weight:500;font-size:1.02rem;color:var(--gold2);min-width:2.2em;text-align:right}
+.count span{font-size:.78rem;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--body);font-weight:600;font-size:.95rem;text-decoration:none;border-radius:999px;padding:13px 24px;border:1px solid transparent;cursor:pointer;transition:transform .15s ease,background-color .15s ease,color .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-gold{background:var(--gold);color:#140a0f}
+.btn-gold:hover{background:var(--gold2)}
+.btn-line{border-color:#5b4652;color:var(--cream)}
+.btn-line:hover{border-color:var(--cream)}
+.hud .btn{padding:8px 15px;font-size:.82rem;white-space:nowrap;flex:none}
+.bar{position:fixed;top:var(--hud);left:0;height:2px;width:100%;z-index:41;background:linear-gradient(90deg,var(--plum),var(--gold));transform-origin:0 50%;transform:scaleX(0)}
+@media (max-width:720px){.mark small,.count span{display:none}.hud{gap:12px}.mark{font-size:1.2rem}}
+@media (max-width:420px){.hud{gap:8px;padding-left:12px;padding-right:12px}.rsvp{padding:3px 7px;font-size:.6rem}.mark{font-size:1.05rem}.hud .btn{padding:8px 11px;font-size:.74rem}.count{display:none}.hud .btn{margin-left:auto}}
+
+/* ---------- guest-list rail ---------- */
+.rail{display:none}
+@media (min-width:1180px){
+  .rail{display:flex;flex-direction:column;position:fixed;top:var(--hud);right:0;bottom:0;width:var(--rail);z-index:30;background:var(--night);border-left:1px solid var(--line)}
+  .rail header{padding:12px 16px;border-bottom:1px solid var(--line);font-size:.8rem;font-weight:500;display:flex;justify-content:space-between}
+  .rail header span{color:var(--muted);font-weight:300}
+  .rail ol{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:14px 16px}
+  .rail li{font-size:.84rem;line-height:1.4;animation:msg .32s cubic-bezier(.2,.9,.3,1.2) both;padding-left:14px;position:relative}
+  .rail li::before{content:"";position:absolute;left:0;top:.5em;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+  .rail li b{font-weight:600;margin-right:6px}
+  .rail li span{color:var(--muted)}
+  .rail li.sys{color:var(--muted);font-size:.76rem;border-top:1px solid var(--line);padding-top:9px;padding-left:0}
+  .rail li.sys::before{content:none}
+  .rail footer{padding:14px 16px;border-top:1px solid var(--line)}
+  .rail footer .btn{width:100%}
+  @keyframes msg{from{opacity:0;transform:translateY(10px)}}
+}
+.ticker{position:fixed;left:0;right:0;bottom:0;z-index:35;display:flex;align-items:center;gap:10px;height:calc(44px + env(safe-area-inset-bottom));padding:0 14px env(safe-area-inset-bottom);background:rgba(20,12,17,.95);backdrop-filter:blur(10px);border-top:1px solid var(--line);font-size:.84rem;white-space:nowrap;overflow:hidden}
+.ticker .tk-label{flex:none;font-size:.66rem;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+.ticker p{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ticker p b{font-weight:600;margin-right:6px}
+.ticker p span{color:var(--muted)}
+.ticker p.sys{color:var(--muted)}
+.ticker p.in{animation:tk .32s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes tk{from{opacity:0;transform:translateY(10px)}}
+@media (min-width:1180px){.ticker{display:none}}
+@media (max-width:1179.98px){footer.legal{padding-bottom:calc(88px + env(safe-area-inset-bottom))}}
+main{margin-right:var(--rail);padding-top:var(--hud);overflow-x:clip}
+section{padding:clamp(72px,9vw,124px) var(--pad)}
+.inner{max-width:1120px;margin:0 auto}
+
+/* ---------- hero ---------- */
+.hero{min-height:calc(100svh - var(--hud));display:grid;align-items:center;padding-top:clamp(40px,6vw,80px);padding-bottom:clamp(48px,6vw,80px);position:relative;background:radial-gradient(80% 70% at 85% 30%,rgba(74,29,51,.55),transparent 70%)}
+.hero .inner{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:center;width:100%}
+.hero h1{font-size:clamp(3rem,7vw,6.2rem)}
+.hero .sub{font-family:var(--display);font-style:italic;font-weight:500;font-size:clamp(1.3rem,2.2vw,1.8rem);color:var(--gold2);margin-top:14px;line-height:1.2}
+.hero .lede{margin-top:22px}
+.hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.hero .note{margin-top:20px}
+.screen{position:relative}
+.screen::before{content:"";position:absolute;inset:-14% -10%;background:radial-gradient(closest-side,rgba(214,170,92,.22),transparent 72%);z-index:0}
+.frame{position:relative;z-index:1;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000 url(/bib/keyart.jpg) center 30%/cover;box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 0 1px rgba(214,170,92,.35)}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.frame .tag{position:absolute;left:10px;top:10px;z-index:2;pointer-events:none}
+.frame .play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.45));border:0;cursor:pointer;color:var(--cream);font:inherit;z-index:1}
+.frame .play span{display:inline-flex;align-items:center;gap:10px;background:rgba(11,7,9,.78);border:1px solid var(--gold);border-radius:999px;padding:10px 18px;font-weight:500;font-size:.9rem}
+.frame .play span::before{content:"";border-left:12px solid var(--gold2);border-top:7px solid transparent;border-bottom:7px solid transparent}
+.frame.live .play{display:none}
+.screen figcaption{margin-top:10px;position:relative;z-index:1}
+.rise{animation:rise .8s cubic-bezier(.2,.8,.2,1) both}
+.rise.d1{animation-delay:.12s}.rise.d2{animation-delay:.24s}.rise.d3{animation-delay:.4s}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}}
+@media (max-width:900px){.hero .inner{grid-template-columns:1fr}}
+
+/* ---------- offer ---------- */
+.offer{background:linear-gradient(160deg,#5a2440,var(--plum) 45%,#2d1120);}
+.offer .top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(20px,5vw,64px);align-items:end}
+.offer .big{font-family:var(--display);font-weight:700;font-size:clamp(6rem,19vw,14rem);line-height:.8;color:var(--gold2)}
+.offer .big small{display:block;font-family:var(--body);font-weight:500;font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cream);margin-bottom:12px}
+.offer h2{font-size:clamp(2rem,4.4vw,3.6rem)}
+.offer .top p{margin-top:14px;max-width:30em;color:#eadfd6}
+.offer .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(24px,5vw,64px);margin-top:56px;border-top:1px solid rgba(239,207,142,.5);padding-top:30px}
+.offer h3{font-weight:600;font-size:1.02rem;margin-bottom:10px;color:var(--gold2)}
+.offer li{padding:9px 0;border-bottom:1px solid rgba(243,236,226,.16);font-size:.98rem}
+.offer li strong{font-weight:600}
+.offer .delivery{display:flex;flex-wrap:wrap;gap:20px clamp(28px,6vw,80px);margin-top:48px}
+.offer .delivery b{display:block;font-family:var(--display);font-weight:700;font-size:clamp(2.4rem,4.8vw,3.8rem);line-height:1;color:var(--gold2)}
+.offer .delivery span{font-size:.9rem}
+.offer .note{color:rgba(243,236,226,.7);margin-top:24px}
+@media (max-width:720px){.offer .top,.offer .cols{grid-template-columns:1fr}}
+
+/* ---------- the show ---------- */
+.show .inner{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,72px);align-items:start}
+.show figure.key{position:sticky;top:calc(var(--hud) + 32px)}
+.show figure{position:relative}
+.show figure img{border-radius:12px;width:100%}
+.show figure .tag{position:absolute;left:10px;top:10px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:30px clamp(20px,4vw,48px);margin-top:36px}
+.stats dt{font-family:var(--display);font-weight:700;font-size:clamp(2.8rem,5.4vw,4.4rem);line-height:1;color:var(--gold2);font-variant-numeric:tabular-nums}
+.stats dd{margin-top:8px;font-size:.95rem;color:#ddd3c8;max-width:19em;text-wrap:balance}
+.chart{margin-top:40px}
+.chart img{border-radius:10px;border:1px solid var(--line)}
+.chart figcaption{margin-top:8px}
+@media (max-width:860px){.show .inner{grid-template-columns:1fr}.show figure.key{max-width:340px;position:relative;top:0}}
+
+/* ---------- the cast ---------- */
+.cast{background:var(--night)}
+.anchor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);margin-top:48px;align-items:start}
+.anchor .who{font-family:var(--display);font-weight:600;font-size:clamp(2rem,3.6vw,3rem);line-height:1}
+.anchor .role{color:var(--gold2);font-style:italic;font-family:var(--display);font-size:1.35rem;margin-top:6px}
+.anchor p{margin-top:16px;color:#ddd3c8;max-width:30em}
+.anchor .stats{margin-top:28px}
+.posts{display:grid;grid-auto-flow:column;grid-auto-columns:min(80vw,340px);gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px;scrollbar-width:thin}
+.posts > div{scroll-snap-align:start;min-width:0}
+.posts .instagram-media{margin:0!important;min-width:0!important;width:100%!important;background:#fff;border-radius:10px!important}
+.posts .ph{display:grid;place-items:center;text-align:center;min-height:420px;border:1px solid var(--line);border-radius:10px;padding:20px;background:var(--panel)}
+.posts .ph b{display:block;font-family:var(--display);font-size:2.6rem;color:var(--gold2);line-height:1}
+.posts .ph a{color:var(--gold2)}
+.posts-wrap .tag{margin-bottom:12px}
+.lineup{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:64px}
+.lineup li{background:var(--night);padding:20px 18px}
+.lineup b{display:block;font-weight:500}
+.lineup span{display:block;font-family:var(--display);font-style:italic;color:var(--gold2);font-size:1.1rem}
+.lineup small{display:block;color:var(--muted);font-size:.82rem;margin-top:6px}
+.lineup .total{background:var(--plum)}
+.lineup .total b{font-family:var(--display);font-size:2.6rem;line-height:1;font-weight:700;color:var(--gold2)}
+@media (max-width:900px){.anchor{grid-template-columns:1fr}.lineup{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- the experience ---------- */
+.moments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:52px}
+.moments li{border:1px solid var(--line);border-radius:14px;padding:26px 24px 28px;background:linear-gradient(180deg,var(--panel),var(--ink))}
+.moments .n{font-size:.78rem;font-weight:500;color:var(--gold);letter-spacing:.12em}
+.moments h3{font-family:var(--display);font-weight:600;font-size:1.9rem;line-height:1.05;margin-top:12px}
+.moments p{font-size:.95rem;color:#d7ccc2;margin-top:10px}
+.moments li:nth-child(2){margin-top:36px}
+@media (max-width:900px){
+  .moments{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:78vw;overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:calc(var(--pad) * -1);padding-inline:var(--pad);scrollbar-width:none}
+  .moments li{scroll-snap-align:center}
+  .moments li:nth-child(2){margin-top:0}
+}
+.talks{margin-top:72px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:start}
+.tabs{display:grid;gap:12px}
+.tabs button{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:16px 20px;border-radius:12px;background:var(--panel);border:1px solid var(--line);transition:border-color .15s ease,background-color .15s ease}
+.tabs button:hover{border-color:#6b5160}
+.tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.tabs button b{display:block;font-family:var(--display);font-weight:600;font-size:1.55rem;line-height:1.1}
+.tabs button span{display:none;font-size:.93rem;color:#2b1520;margin-top:8px}
+.tabs button[aria-selected="true"]{background:linear-gradient(135deg,var(--gold2),var(--gold));border-color:var(--gold);color:#1a0d13}
+.tabs button[aria-selected="true"] span{display:block}
+.shots{position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:var(--panel)}
+.shots img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .45s ease}
+.shots img.on{opacity:1}
+.shots .tag{position:absolute;left:12px;bottom:12px;z-index:2}
+@media (max-width:820px){.talks{grid-template-columns:1fr}.shots{order:-1}}
+
+/* ---------- business case ---------- */
+.biz{background:var(--night)}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}
+.flow li{padding:26px 22px 0 0;position:relative}
+.flow li::before{content:"";position:absolute;top:-6px;left:0;width:11px;height:11px;border-radius:50%;background:var(--gold)}
+.flow .step{font-size:.78rem;color:var(--gold);font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+.flow h3{font-family:var(--display);font-weight:600;font-size:1.9rem;line-height:1.05;margin-top:6px}
+.flow p{font-size:.93rem;color:#d7ccc2;margin-top:8px}
+.flow .win{display:block;margin-top:12px;font-size:.84rem;color:var(--gold2);font-weight:500}
+@media (max-width:760px){.flow{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:34px;border-top:0}.flow li{border-top:1px solid var(--line)}}
+.funded{margin-top:64px;display:flex;flex-wrap:wrap;gap:14px 40px;align-items:baseline;border:1px solid rgba(214,170,92,.45);border-radius:14px;padding:26px 28px;background:rgba(74,29,51,.35)}
+.funded b{font-family:var(--display);font-size:clamp(1.7rem,3vw,2.4rem);font-weight:600;line-height:1.1;max-width:15em}
+.funded p{color:#ddd3c8;max-width:34em}
+
+/* ---------- proof ---------- */
+.proof ol{margin-top:56px}
+.proof li{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr);gap:clamp(20px,4vw,56px);padding:38px 0;border-top:1px solid var(--line);align-items:center}
+.proof li:last-child{border-bottom:1px solid var(--line)}
+.proof .fig{font-family:var(--display);font-weight:700;font-size:clamp(3.2rem,6vw,5.2rem);line-height:.9;font-variant-numeric:tabular-nums}
+.proof .fig small{display:block;font-family:var(--body);font-weight:300;font-size:.92rem;line-height:1.4;color:var(--muted);margin-top:12px;max-width:16em}
+.proof .hot .fig{color:var(--gold2)}
+.proof h3{font-weight:500;font-size:1.3rem;line-height:1.3}
+.proof p{margin-top:10px;color:#ddd3c8;max-width:36em}
+@media (max-width:820px){.proof li{grid-template-columns:1fr;gap:14px}}
+
+/* ---------- grow ---------- */
+.grow{background:var(--night)}
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:52px;align-items:end}
+.ladder li{border-radius:14px;padding:22px 20px;border:1px solid var(--line);background:var(--panel)}
+.ladder li:nth-child(1){min-height:200px;border-color:var(--gold);background:linear-gradient(180deg,rgba(214,170,92,.18),var(--panel))}
+.ladder li:nth-child(2){min-height:240px}
+.ladder li:nth-child(3){min-height:280px}
+.ladder li:nth-child(4){min-height:320px;background:linear-gradient(180deg,var(--plum),var(--panel))}
+.ladder .when{font-size:.78rem;font-weight:500;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+.ladder h3{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.05;margin-top:8px}
+.ladder p{font-size:.92rem;color:#d7ccc2;margin-top:8px}
+.ladder .start{display:inline-block;margin-top:12px;font-size:.8rem;font-weight:600;background:var(--gold);color:#140a0f;border-radius:999px;padding:3px 10px}
+@media (max-width:860px){.ladder{grid-template-columns:1fr 1fr}.ladder li{min-height:0!important}}
+@media (max-width:480px){.ladder{grid-template-columns:1fr}}
+
+/* ---------- timing ---------- */
+.when-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}
+.when-row li{padding:26px 22px 0 0;position:relative}
+.when-row li::before{content:"";position:absolute;top:-6px;left:0;width:11px;height:11px;border-radius:50%;background:var(--gold)}
+.when-row li.now::before{background:var(--red);box-shadow:0 0 0 5px rgba(200,16,46,.25)}
+.when-row time{font-size:.86rem;color:var(--gold);font-weight:500}
+.when-row h3{font-family:var(--display);font-weight:600;font-size:1.75rem;line-height:1.05;margin-top:6px}
+.when-row p{font-size:.92rem;color:#d7ccc2;margin-top:8px}
+@media (max-width:760px){.when-row{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:34px;border-top:0}.when-row li{border-top:1px solid var(--line)}}
+
+/* ---------- close ---------- */
+.close{position:relative;min-height:92svh;display:grid;align-items:end;overflow:hidden;background:#000 url(/bib/keyart.jpg) center 22%/cover}
+.close::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,7,9,.35),rgba(11,7,9,.9) 62%);z-index:1}
+.close .inner{position:relative;z-index:2;width:100%}
+.close h2{font-size:clamp(2.8rem,7vw,6rem);max-width:12em}
+.close .cta{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px}
+.team{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(20px,4vw,48px);margin-top:64px;padding-top:26px;border-top:1px solid rgba(243,236,226,.3)}
+.team h3{font-weight:500;font-size:1.02rem}
+.team p{font-size:.9rem;color:#ddd3c8;margin-top:6px}
+@media (max-width:760px){.team{grid-template-columns:1fr}}
+footer.legal{margin-right:var(--rail);padding:28px var(--pad) 44px;font-size:.76rem;color:var(--muted);line-height:1.6;border-top:1px solid var(--line)}
+footer.legal p{max-width:70em}
+footer.legal p+p{margin-top:10px}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rise,.rail li,.rsvp i,.ticker p.in{animation:none}
+  .shots img,.btn,.tabs button{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div class="hud" role="banner">
+  <span class="rsvp"><i></i>RSVP OPEN</span>
+  <a class="mark" href="#top">Beyond the Crown<small>Beauty 4U × Beauty in Black cast</small></a>
+  <div class="count" aria-hidden="true"><b id="count">0</b><span>of 100 guests</span></div>
+  <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Book 20 minutes</a>
+</div>
+<div class="bar" id="bar" aria-hidden="true"></div>
+
+<aside class="rail" aria-hidden="true">
+  <header>Guest list <span>mock-up</span></header>
+  <ol id="list"></ol>
+  <footer><a class="btn btn-gold" data-contact tabindex="-1" href="https://calendly.com/joesarge">Book 20 minutes</a></footer>
+</aside>
+
+<div class="ticker" aria-hidden="true"><span class="tk-label">Guest list mock-up</span><p id="ticker"></p></div>
+
+<main id="top">
+
+<section class="hero" data-list="hero">
+  <div class="inner">
+    <div>
+      <p class="kicker rise" id="prepared">Prepared for Beauty 4U</p>
+      <h1 class="display rise">Beyond the <em>Crown</em></h1>
+      <p class="sub rise d1">The cast of Tyler Perry's Beauty in Black, inside a Beauty 4U store.</p>
+      <p class="lede rise d1">On Netflix, the Bellarie family runs a hair-care empire. In real life, that conversation happens in the beauty aisle. We bring the cast, beauty experts and your customers into one room. You keep the customers.</p>
+      <div class="cta rise d2">
+        <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Book 20 minutes</a>
+        <a class="btn btn-line" href="#offer">See the pilot</a>
+      </div>
+    </div>
+    <figure class="screen rise d2">
+      <div class="frame" id="trailer" data-yt="LK9Jl5Esyz4">
+        <span class="tag tag-real">Official Netflix trailer</span>
+        <button class="play" type="button" aria-label="Play the Season 3 trailer"><span>Play the Season 3 trailer</span></button>
+      </div>
+      <figcaption class="note">Tyler Perry's Beauty in Black, Season 3. Trailer by Netflix, embedded from YouTube.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="offer" id="offer" data-list="offer">
+  <div class="inner">
+    <div class="top">
+      <div class="big"><small>Store pilot from</small>$25K</div>
+      <div>
+        <h2 class="display">One store. One day.<br>The cast in the room.</h2>
+        <p>Beauty 4U picks the store and the date. We bring the talent, the program, the production and the content. Your team owns the customer relationship after the event.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>Beauty 4U gets</h3>
+        <ul>
+          <li><strong>1 to 2 cast appearances</strong> in your store</li>
+          <li>A moderated conversation on hair, identity and choice</li>
+          <li>A curated product edit and an event-only offer</li>
+          <li><strong>The RSVP list.</strong> Every guest opts in to Beauty 4U</li>
+          <li>Instagram Collab posts with the cast, before and after</li>
+          <li>Short-form content from the day, with usage rights</li>
+          <li>Supplier slots that your brands can fund</li>
+          <li>Local and earned media outreach, plus a recap report</li>
+        </ul>
+      </div>
+      <div>
+        <h3>We ask</h3>
+        <ul>
+          <li>One store and one date</li>
+          <li>The product edit and the offer</li>
+          <li>Promotion to your customers, in store and online</li>
+          <li>Introductions to 2 or 3 of your current suppliers</li>
+        </ul>
+      </div>
+    </div>
+    <div class="delivery">
+      <div><b>100</b><span>RSVP guests, opted in to Beauty 4U</span></div>
+      <div><b>5MM+</b><span>combined social reach of the confirmed cast</span></div>
+      <div><b>13</b><span>Beauty 4U stores the pilot can roll into</span></div>
+    </div>
+    <p class="note">Cast appearances depend on availability and talent approval. Reach is cast follower totals across Instagram, Facebook and TikTok. Media coverage is an outreach goal, not a guarantee.</p>
+  </div>
+</section>
+
+<section class="show" id="show" data-list="show">
+  <div class="inner">
+    <figure class="key"><img src="/bib/keyart.jpg" width="864" height="1080" alt="Key art for Tyler Perry's Beauty in Black on Netflix" loading="lazy"><span class="tag">Image: Netflix</span></figure>
+    <div>
+      <p class="kicker">The show</p>
+      <h2 class="display">The story already lives in the <em>beauty aisle</em></h2>
+      <p class="lede" style="margin-top:18px">Beauty in Black is a drama about a family that owns a hair-care company. Image, ambition and control drive every episode. Black women made it a hit, and they are your customers.</p>
+      <dl class="stats">
+        <div><dt data-count="1.6" data-dec="1" data-suffix="B">1.6B</dt><dd>minutes watched in the Season 3 debut week, the biggest week in the show's history</dd></div>
+        <div><dt data-count="17">17</dt><dd>countries where the show reached #1 on Netflix</dd></div>
+        <div><dt>S4</dt><dd>Netflix reversed the planned ending. Season 4 is now in production.</dd></div>
+        <div><dt data-count="8.5" data-dec="1">8.5</dt><dd>average IMDb rating per episode in Season 3, up from 7.3 in Season 1</dd></div>
+      </dl>
+      <figure class="chart"><img src="/bib/ratings.jpg" width="1440" height="810" alt="Chart: average IMDb rating per episode rises from 7.3 in Season 1 to 8.1 in Season 2 and 8.5 in Season 3" loading="lazy"><figcaption class="note">Average IMDb user rating per episode, all 40 episodes.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="cast" id="cast" data-list="cast">
+  <div class="inner">
+    <p class="kicker">The cast</p>
+    <h2 class="display">Fans don't just watch them. <em>They show up.</em></h2>
+    <div class="anchor">
+      <div>
+        <p class="who">Ricco Ross</p>
+        <p class="role">Horace Bellarie, founder of the Beauty in Black empire</p>
+        <p>On screen, he built the hair-care company. Off screen, his feed is one of the most engaged in the cast. Ricco is the anchor of the tour and co-leads its production through Hyperlens Studio.</p>
+        <dl class="stats">
+          <div><dt data-count="28.4" data-dec="1" data-suffix="%">28.4%</dt><dd>Instagram engagement rate, from an audit of 14 posts</dd></div>
+          <div><dt data-count="196" data-suffix="K">196K</dt><dd>likes on one post: "Beauty in Black Season 4 is in motion"</dd></div>
+        </dl>
+      </div>
+      <div class="posts-wrap">
+        <span class="tag tag-real">Real posts</span>
+        <div class="posts" id="posts">
+          <div><blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/De4TdqGkR4-/" data-instgrm-version="14"><div class="ph"><div><b>196K</b>likes · 1,758 comments<br><a href="https://www.instagram.com/p/De4TdqGkR4-/" rel="noopener">See the post on Instagram</a></div></div></blockquote></div>
+          <div><blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/DfdcQnKDt6u/" data-instgrm-version="14"><div class="ph"><div><b>139K</b>likes · 2,658 comments<br><a href="https://www.instagram.com/p/DfdcQnKDt6u/" rel="noopener">See the post on Instagram</a></div></div></blockquote></div>
+          <div><blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/DfxqtBUmKtF/" data-instgrm-version="14"><div class="ph"><div><b>25K</b>likes · 370 comments<br><a href="https://www.instagram.com/p/DfxqtBUmKtF/" rel="noopener">See the post on Instagram</a></div></div></blockquote></div>
+        </div>
+        <p class="note" style="margin-top:10px">Posts from @riccoross, Oct. and Nov. 2026. Counts as of Nov. 17, 2026.</p>
+      </div>
+    </div>
+    <ul class="lineup">
+      <li class="total"><b>5MM+</b><small>combined reach, confirmed cast</small></li>
+      <li><b>Ricco Ross</b><span>Horace</span><small>1.7MM reach</small></li>
+      <li><b>Terrell Carter</b><span>Varney</span><small>1.4MM reach · headline music</small></li>
+      <li><b>Julian Horton</b><span>Roy</span><small>1.3MM reach</small></li>
+      <li><b>Bryan Tanaka</b><span>Officer Alex</span><small>700K reach</small></li>
+      <li><b>Debbi Morgan</b><span>Olivia</span><small>348K reach</small></li>
+      <li><b>Richard Lawson</b><span>Norman</span><small>340K reach</small></li>
+      <li><b>Amber Reign Smith</b><span>Rain</span><small>180K reach</small></li>
+    </ul>
+    <p class="note" style="margin-top:14px">Reach: followers across Instagram, Facebook and TikTok. Engagement rate: audit of 14 Instagram posts per account around the Season 2 launch. George Middlebrook is also confirmed. Other cast members are available on request.</p>
+  </div>
+</section>
+
+<section class="exp" id="experience" data-list="experience">
+  <div class="inner">
+    <p class="kicker">The experience</p>
+    <h2 class="display">Conversation. Community. <em>Commerce.</em></h2>
+    <p class="lede" style="margin-top:18px">This is not an autograph line. It is one experience in three moments, and each moment sells.</p>
+    <ol class="moments">
+      <li><p class="n">01 · AT THE STORE</p><h3>The Beauty 4U moment</h3><p>A scheduled cast arrival. Curated product edits, an exclusive offer and controlled VIP time with the cast.</p></li>
+      <li><p class="n">02 · ON THE STAGE</p><h3>The conversation</h3><p>Cast members, stylists, founders and real customers. A skilled moderator, live questions and moments made for social.</p></li>
+      <li><p class="n">03 · IN THE MARKETPLACE</p><h3>The discovery</h3><p>Selected Beauty 4U supplier brands host demos, product education and consultations. Guests shop on the spot.</p></li>
+    </ol>
+    <div class="talks">
+      <div>
+        <h3 class="display" style="font-size:clamp(1.8rem,3.2vw,2.6rem)">Three conversations with real substance</h3>
+        <div class="tabs" role="tablist" aria-label="Conversation topics" style="margin-top:22px">
+          <button role="tab" aria-selected="true" data-shot="crown"><b>Our Crown, Our Choices</b><span>Why does how we wear our hair still shape how we are seen? Natural hair, wigs, braids, locs and protective styles at work.</span></button>
+          <button role="tab" aria-selected="false" data-shot="screen"><b>Beauty Behind the Screen</b><span>Who defines beauty when your image is your job? On-set styling, representation and personal image.</span></button>
+          <button role="tab" aria-selected="false" data-shot="business"><b>The Business of Beauty</b><span>How do we build ownership in an industry we influence? Entrepreneurship, careers, retail and product.</span></button>
+        </div>
+      </div>
+      <div class="shots" id="shots">
+        <span class="tag" id="shotTag">Image: Netflix</span>
+        <img class="on" data-tag="Image: Netflix" data-shot="crown" src="/bib/keyart.jpg" alt="Key art: the Beauty in Black cast" loading="lazy" style="object-position:center 25%">
+        <img data-tag="Concept render" data-shot="screen" src="/bib/render-cast.jpg" alt="Concept render: cast members in an editorial fashion shoot" loading="lazy">
+        <img data-tag="Concept render" data-shot="business" src="/bib/render-products.jpg" alt="Concept render: a hair-care product line on a display" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="biz" id="business" data-list="business">
+  <div class="inner">
+    <p class="kicker">The business case</p>
+    <h2 class="display">Cultural energy. <em>Retail results.</em></h2>
+    <p class="lede" style="margin-top:18px">The cast creates the interest. The experience gets people in the door. Beauty 4U turns both into customers who come back.</p>
+    <ol class="flow">
+      <li><p class="step">01 · Attract</p><h3>Cast content</h3><p>Collab posts, teaser Reels and local ads drive RSVPs.</p><span class="win">Store traffic</span></li>
+      <li><p class="step">02 · Engage</p><h3>The conversation</h3><p>Guests join a real dialogue, not a photo line.</p><span class="win">Community</span></li>
+      <li><p class="step">03 · Convert</p><h3>Shop the look</h3><p>Event bundles in store, plus trackable codes and QR links online.</p><span class="win">Sales, in store and online</span></li>
+      <li><p class="step">04 · Reconnect</p><h3>Follow-up</h3><p>Opt-in offers, recap content and a reason to return.</p><span class="win">Loyalty</span></li>
+    </ol>
+    <div class="funded">
+      <b>Your suppliers can help pay for it.</b>
+      <p>Marketplace slots go to brands Beauty 4U already carries. They get product education, sampling and content with the cast. Beauty 4U can sell those slots to offset the pilot.</p>
+    </div>
+    <p class="note" style="margin-top:22px">We measure results against goals we agree on together. We do not guarantee outcomes.</p>
+  </div>
+</section>
+
+<section class="proof" id="proof" data-list="proof">
+  <div class="inner">
+    <p class="kicker">Proof</p>
+    <h2 class="display">Fans pay to step inside the shows <em>they love</em></h2>
+    <ol>
+      <li>
+        <div class="fig"><span data-count="300" data-suffix="K+">300K+</span><small>guests at the Stranger Things Drive-Into Experience in Los Angeles</small></div>
+        <div><h3>Netflix turned a show into a ticketed event. It sold out.</h3>
+        <p>The Drive-Into Experience sold out every day for more than seven months. Netflix now runs permanent Netflix House venues in Philadelphia and Dallas. Streaming fans want to be in the room.</p></div>
+      </li>
+      <li>
+        <div class="fig"><span data-count="1.6" data-dec="1" data-suffix="B">1.6B</span><small>minutes watched in one week of Beauty in Black Season 3</small></div>
+        <div><h3>This audience is at its peak, and nobody serves it live</h3>
+        <p>Season 3 led the weekly streaming rankings in its debut week. Netflix has already ordered Season 4. Until now, no brand has given these fans a way to meet the cast in person.</p></div>
+      </li>
+      <li class="hot">
+        <div class="fig"><span data-count="15" data-suffix="+">15+</span><small>years in experiential, including workshops and screenings with this cast</small></div>
+        <div><h3>This team has done it with this cast</h3>
+        <p>Shy Averett of The Veritas Experience has run workshops and screenings with the cast. She produces events for the Nick Cannon and Anthony Anderson foundations. The pilot is a format we know, in a room you own.</p></div>
+      </li>
+    </ol>
+    <p class="note" style="margin-top:22px">Sources: <a href="https://lovethework.com/work-awards/campaigns/stranger-things-the-drive-into-experience-705196" rel="noopener">Cannes Lions, Stranger Things Drive-Into case</a>; <a href="https://newsroom.feverup.com/en-US/213189-stranger-things-the-experience-brings-the-upside-down-to-new-york-city-this-spring" rel="noopener">Fever newsroom</a>; <a href="https://www.denofgeek.com/tv/inside-the-netflix-house-dallas-grand-opening/" rel="noopener">Den of Geek, Netflix House</a>; <a href="https://fictionhorizon.com/?p=382795" rel="noopener">weekly streaming rankings via Variety's Boardroom</a>; <a href="https://netflixlife.com/beauty-in-black-season-3-wins-biggest-netflix-viewership-debut-shows-history" rel="noopener">Netflix Life</a>; <a href="https://www.complex.com/pop-culture/a/bernadette-giacomazzo/tyler-perry-beauty-in-black-netflix-cancelation" rel="noopener">Complex</a>; <a href="https://www.netflix.com/tudum/articles/beauty-in-black-season-4-cast-release-date-news" rel="noopener">Netflix Tudum</a>; <a href="https://www.dadavidson.com/About-Us/News/ArticleID/7191/D-A-Davidson-Acts-Exclusive-Financial-Advisor-Promise-Holdings-Debt-Equity-Capital-Raise-Support-Acquisition-Beauty-4U" rel="noopener">D.A. Davidson</a>; IMDb user ratings.</p>
+  </div>
+</section>
+
+<section class="grow" id="grow" data-list="grow">
+  <div class="inner">
+    <p class="kicker">Grow from the pilot</p>
+    <h2 class="display">Start with one store. <em>Scale what works.</em></h2>
+    <ol class="ladder">
+      <li><p class="when">Step 1</p><h3>The store pilot</h3><p>One Beauty 4U store. 100 guests. 1 to 2 cast members. A focused group of product partners.</p><span class="start">From $25K</span></li>
+      <li><p class="when">Step 2</p><h3>The DMV flagship</h3><p>A main-stage conversation plus a store visit. 150 to 250 guests, more cast and a full supplier marketplace.</p></li>
+      <li><p class="when">Step 3</p><h3>Campus pop-ups</h3><p>HBCUs and community colleges. Protective-style and wig-care demos. Students shop online after.</p></li>
+      <li><p class="when">Step 4</p><h3>The Private Affair</h3><p>The tour's black-tie evening with the full cast and live music by Terrell Carter. Beauty 4U can own the beauty category.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="timing" id="timing" data-list="timing">
+  <div class="inner">
+    <p class="kicker">Timing</p>
+    <h2 class="display">Meet fans <em>between seasons</em>, when they miss the show most</h2>
+    <ol class="when-row">
+      <li class="now"><time>Now</time><h3>Season 3 streaming</h3><p>Season 4 is in production.</p></li>
+      <li><time>Dec 2026</time><h3>NYE / holiday launch</h3><p>The Private Affair opens the tour.</p></li>
+      <li><time>Q1 2027</time><h3>Beauty 4U pilot</h3><p>One store, one date. We build it with your team.</p></li>
+      <li><time>Season 4 premiere</time><h3>Ride the return</h3><p>Pilot content rolls into the new season's buzz.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="close" id="book" data-list="close">
+  <div class="inner">
+    <h2 class="display">Streaming made them fans. <em>Beauty 4U makes them customers.</em></h2>
+    <div class="cta">
+      <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Book 20 minutes to plan the pilot</a>
+    </div>
+    <div class="team">
+      <div><h3>Ricco Ross + Richard Lawson</h3><p>Hyperlens Studio. Actor-owned production company leading the Live Experience Tour.</p></div>
+      <div><h3>Shy Averett</h3><p>The Veritas Experience. 15+ years in experiential marketing. Event lead for the Nick Cannon and Anthony Anderson foundations.</p></div>
+      <div><h3>Joe Sargent, Producer</h3><p>Sargent Worx. 15 years in brand and sports marketing with Miller Lite, Coors Light, EFFEN Vodka, the Kansas City Chiefs and the Atlanta Dream.</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="legal">
+  <p>Discussion draft. Beyond the Crown is a proposed collaboration between Beauty 4U and members of the cast of Tyler Perry's Beauty in Black, produced with Hyperlens Studio, The Veritas Experience and Sargent Worx. It is not an official Netflix, Tyler Perry Studios or Beauty 4U announcement, and it is not affiliated with or endorsed by Netflix or Tyler Perry Studios. All talent, creative and brand rights are subject to approval.</p>
+  <p>The trailer and Instagram posts are official embeds from their owners. Key art is © Netflix and appears for identification only. Images marked "Concept render" are illustrations. The guest-list overlay and rail are mock-ups. Formats, guest counts and pricing are illustrative and depend on the final scope.</p>
+</footer>
+
+<script>
+/* ---------- CONFIG: edit here ---------- */
+const CONFIG = {
+  contactUrl: "https://calendly.com/joesarge",   // every "Book 20 minutes" button
+  guests: 100
+};
+/* Personalize a link: /bib?to=Stacie  ->  "Prepared for Stacie, Beauty 4U" */
+
+(function(){
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+  const io = "IntersectionObserver" in window;
+
+  $$("[data-contact]").forEach(a => a.href = CONFIG.contactUrl);
+
+  // Personalization: text only, never HTML.
+  const to = (new URLSearchParams(location.search).get("to") || "").replace(/[<>]/g,"").trim().slice(0,40);
+  if (to) $("#prepared").textContent = "Prepared for " + to + ", Beauty 4U";
+
+  // RSVP count runs with the scroll position.
+  const count = $("#count"), bar = $("#bar");
+  let ticking = false;
+  function tick(){
+    ticking = false;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+    count.textContent = Math.round(p * CONFIG.guests);
+    bar.style.transform = "scaleX(" + p + ")";
+  }
+  addEventListener("scroll", () => { if(!ticking){ ticking = true; requestAnimationFrame(tick); } }, {passive:true});
+  addEventListener("resize", tick);
+  tick();
+
+  // Trailer: official YouTube embed. Loads muted when on screen, pauses when off screen.
+  const fr = $("#trailer"), id = fr.dataset.yt;
+  let ifr = null;
+  function loadTrailer(sound){
+    if (ifr){ if (sound) cmd("unMute"), cmd("playVideo"); return; }
+    ifr = document.createElement("iframe");
+    ifr.title = "Tyler Perry's Beauty in Black: Season 3, official trailer (Netflix)";
+    ifr.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    ifr.referrerPolicy = "strict-origin-when-cross-origin";
+    ifr.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&mute=" + (sound?0:1) + "&loop=1&playlist=" + id + "&playsinline=1&rel=0&modestbranding=1&enablejsapi=1";
+    fr.append(ifr); fr.classList.add("live");
+  }
+  function cmd(f){ if (ifr && ifr.contentWindow) ifr.contentWindow.postMessage(JSON.stringify({event:"command",func:f,args:""}),"*"); }
+  $(".play", fr).addEventListener("click", () => loadTrailer(true));
+  if (!reduce && io){
+    const to2 = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { if (!ifr) loadTrailer(false); else cmd("playVideo"); }
+      else cmd("pauseVideo");
+    }), {threshold:.4});
+    setTimeout(() => to2.observe(fr), 900);
+  }
+
+  // Instagram embeds load only when the reader gets near them.
+  const posts = $("#posts");
+  function loadIG(){
+    if (window.__ig) return; window.__ig = 1;
+    const s = document.createElement("script"); s.async = true; s.src = "https://www.instagram.com/embed.js";
+    s.onload = () => window.instgrm && window.instgrm.Embeds.process();
+    document.body.append(s);
+  }
+  if (io){ const po = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)){ loadIG(); po.disconnect(); } }, {rootMargin:"600px 0px"}); po.observe(posts); }
+  else loadIG();
+
+  // Numbers count up once, when the reader reaches them.
+  function countUp(el){
+    const end = parseFloat(el.dataset.count), dec = +(el.dataset.dec||0), suf = el.dataset.suffix||"";
+    const t0 = performance.now(), dur = 1100;
+    (function step(t){
+      const k = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-k,3);
+      el.textContent = (end*e).toFixed(dec) + suf;
+      if (k<1) requestAnimationFrame(step);
+    })(t0);
+  }
+  if (!reduce && io){
+    const co = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ countUp(e.target); co.unobserve(e.target); } }), {threshold:.6});
+    $$("[data-count]").forEach(el => co.observe(el));
+  }
+
+  // Conversation switcher.
+  const tabs = $$(".tabs button"), shots = $$("#shots img");
+  function pick(btn){
+    tabs.forEach(b => b.setAttribute("aria-selected", b===btn ? "true" : "false"));
+    shots.forEach(i => { const on = i.dataset.shot===btn.dataset.shot; i.classList.toggle("on", on); if (on) $("#shotTag").textContent = i.dataset.tag; });
+  }
+  tabs.forEach((b,i) => {
+    b.tabIndex = 0;
+    b.addEventListener("click", () => pick(b));
+    b.addEventListener("keydown", e => {
+      if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(b); }
+      if (e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); const n = tabs[(i+(e.key==="ArrowDown"?1:-1)+tabs.length)%tabs.length]; n.focus(); pick(n); }
+    });
+  });
+
+  // Mock guest list fills in by section.
+  const SCRIPT = {
+    hero:       [["Keisha M.","RSVP'd · wants a wig consult"],["Tasha R.","RSVP'd · bringing her sister"],["sys","Opt-in captured · Beauty 4U list"]],
+    offer:      [["Danielle W.","RSVP'd · shops there weekly"],["Monique B.","RSVP'd · VIP add-on"]],
+    show:       [["Aaliyah J.","RSVP'd · watched S3 twice"],["Crystal P.","RSVP'd · Team Horace"]],
+    cast:       [["Renee T.","RSVP'd · here for Ricco"],["Imani S.","RSVP'd · from @riccoross post"],["sys","Collab post live · RSVPs climbing"]],
+    experience: [["Nia K.","Question submitted for the panel"],["Gloria H.","Booked a braid-care demo"]],
+    business:   [["Jasmine L.","Used code CROWN at checkout"],["sys","Event bundle · 3 sold in 10 min"]],
+    proof:      [["Brianna C.","RSVP'd · first visit to Beauty 4U"]],
+    grow:       [["Kayla D.","Asked: is this coming to Howard?"]],
+    timing:     [["sys","Waitlist open · next store date"]],
+    close:      [["Stephanie A.","RSVP'd · see you there"],["sys","Guest list full · 100 of 100"]]
+  };
+  const list = $("#list"), tk = $("#ticker"); const seen = new Set();
+  function add(name, text, delay){
+    setTimeout(() => {
+      const li = document.createElement("li");
+      if (name==="sys"){ li.className = "sys"; li.textContent = text; }
+      else { const b = document.createElement("b"), s = document.createElement("span"); b.textContent = name; s.textContent = text; li.append(b, s); }
+      list.append(li);
+      while (list.children.length > 14) list.firstElementChild.remove();
+      if (tk){ tk.className = (name==="sys" ? "sys " : "") + "in"; tk.replaceChildren(...[...li.childNodes].map(n => n.cloneNode(true))); void tk.offsetWidth; }
+    }, reduce ? 0 : delay);
+  }
+  if (list && io){
+    const so = new IntersectionObserver(es => es.forEach(e => {
+      const k = e.target.dataset.list;
+      if (e.isIntersecting && !seen.has(k)){ seen.add(k); (SCRIPT[k]||[]).forEach((m,i) => add(m[0], m[1], 500 + i*900)); }
+    }), {threshold:.3});
+    $$("[data-list]").forEach(s => so.observe(s));
+  }
+})();
+</script>
+</body>
+</html>
