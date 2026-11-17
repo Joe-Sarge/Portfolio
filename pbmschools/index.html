@@ -91,6 +91,16 @@ h2.display{font-size:clamp(2.2rem,5.2vw,4.4rem)}
   .chat footer .btn{width:100%}
   @keyframes msg{from{opacity:0;transform:translateY(10px)}}
 }
+/* small screens: the chat rail becomes a one-line ticker at the bottom */
+.ticker{position:fixed;left:0;right:0;bottom:0;z-index:35;display:flex;align-items:center;gap:10px;height:calc(44px + env(safe-area-inset-bottom));padding:0 14px env(safe-area-inset-bottom);background:rgba(11,14,19,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);font-size:.84rem;white-space:nowrap;overflow:hidden}
+.ticker .tk-label{flex:none;font-size:.66rem;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+.ticker p{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ticker p b{font-weight:600;margin-right:6px}
+.ticker p.sys{color:var(--muted)}
+.ticker p.in{animation:tk .32s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes tk{from{opacity:0;transform:translateY(10px)}}
+@media (min-width:1180px){.ticker{display:none}}
+@media (max-width:1179.98px){footer.legal{padding-bottom:calc(88px + env(safe-area-inset-bottom))}}
 main{margin-right:var(--chat);padding-top:var(--hud);overflow-x:clip}
 section{padding:clamp(72px,9vw,124px) var(--pad)}
 .inner{max-width:1120px;margin:0 auto}
@@ -130,6 +140,11 @@ section{padding:clamp(72px,9vw,124px) var(--pad)}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:34px clamp(20px,4vw,56px);margin-top:40px}
 .stats dt{font-family:var(--display);font-size:clamp(2.6rem,5.4vw,4.4rem);line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
 .stats dd{margin:8px 0 0;font-size:.95rem;color:#d9d6cd;max-width:19em;text-wrap:balance}
+.realclip{margin-top:40px;max-width:440px}
+.max .realclip::before{content:none}
+.realclip .clip{aspect-ratio:12/11}
+.realclip figcaption{margin-top:10px}
+.tag.tag-real{background:var(--gold);color:#000;font-weight:600}
 .firsts{margin-top:40px;display:grid;gap:10px;font-size:1rem;font-weight:600}
 .firsts li{padding-left:22px;position:relative}
 .firsts li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:9px;border-radius:50%;background:var(--gold)}
@@ -287,7 +302,7 @@ footer.legal p{max-width:70em}
 
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  .rise,.chat li,.live i{animation:none}
+  .rise,.chat li,.live i,.ticker p.in{animation:none}
   .shots img,.btn,.tabs button{transition:none}
   .neon-bar,.neon-logo{opacity:1;animation:none!important}
   .scrawl path{stroke-dashoffset:0!important;animation:none!important}
@@ -312,6 +327,8 @@ footer.legal p{max-width:70em}
   <footer><a class="btn btn-gold" data-contact tabindex="-1" href="https://calendly.com/joesarge">Ask about hosting</a></footer>
 </aside>
 
+<div class="ticker" aria-hidden="true"><span class="tk-label">Chat mock-up</span><p id="ticker"></p></div>
+
 <main id="top">
 
 <section class="hero" data-chat="hero">
@@ -323,7 +340,7 @@ footer.legal p{max-width:70em}
         <a class="btn btn-gold" data-contact href="https://calendly.com/joesarge">Ask about hosting</a>
         <a class="btn btn-line" href="#hours">See the 48 hours</a>
       </div>
-      <p class="note rise d3">Concept renders shown throughout. Your campus, your colors and your players go here.</p>
+      <p class="note rise d3">Concept renders, shown at USC for illustration. Your campus, your colors and your players go here.</p>
     </div>
     <div class="stage rise d2">
       <div class="clip">
@@ -333,6 +350,46 @@ footer.legal p{max-width:70em}
         <div class="school-slot" id="schoolSlot" hidden><img id="schoolLogo" alt=""><span id="schoolName"></span></div>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="deal" id="deal" data-chat="deal">
+  <div class="inner">
+    <div class="top">
+      <div class="zero display" aria-hidden="true">$0</div>
+      <div>
+        <h2 class="display"><span data-school="{s} hosts.">Your school hosts.</span><br>Zero fee.</h2>
+        <p>You open the doors. We bring the talent, the production and the audience.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>You get</h3>
+        <ul>
+          <li>A reserved sponsor package to sell</li>
+          <li>2 NIL spots to sell, with athlete posts and a featured segment</li>
+          <li>10 talent mentions across the week</li>
+          <li>8 student spots for hands-on production experience</li>
+          <li>An on-site activation for the student body</li>
+          <li>PR and media inclusion, plus a post-campaign report</li>
+        </ul>
+      </div>
+      <div>
+        <h3>We ask</h3>
+        <ul>
+          <li>Official facility access and security</li>
+          <li>Pass-through brand usage rights</li>
+          <li>NIL coordination</li>
+          <li>4 social posts from official Athletics channels</li>
+        </ul>
+      </div>
+    </div>
+    <div class="delivery">
+      <div><b>8–15M</b><span>projected impressions per stream</span></div>
+      <div><b>2–5M</b><span>projected video views</span></div>
+      <div><b>72%</b><span>of the audience is under 34</span></div>
+    </div>
+    <p class="note">Projections are based on current audience performance and comparable Max streams. Actual results will vary.</p>
   </div>
 </section>
 
@@ -348,6 +405,10 @@ footer.legal p{max-width:70em}
         <div><dt data-count="87" data-suffix="K">87K</dt><dd>average concurrent viewers<br>during that game</dd></div>
         <div><dt data-count="449" data-suffix="K+">449K+</dt><dd>likes on his 1v1 against<br>Klay Thompson</dd></div>
       </dl>
+      <figure class="realclip">
+        <div class="clip"><span class="tag tag-real">Real footage</span><video muted loop playsinline preload="none" poster="/pbm/real/klay-3-matchup.jpg" data-autoplay aria-label="PlaqueBoyMax plays Klay Thompson one on one"><source src="/pbm/real/klay-3-matchup.mp4" type="video/mp4"></video></div>
+        <figcaption class="note">Max against Klay Thompson, 1v1.</figcaption>
+      </figure>
       <ul class="firsts">
         <li>The first Twitch streamer nominated for a Grammy</li>
         <li>#10 on the Complex Hip Hop Media Power Ranking</li>
@@ -403,7 +464,7 @@ footer.legal p{max-width:70em}
         <p>His top episode reached 4.4MM views. Those visits were pre-recorded, with no sponsors. Campus Takeover is live for 48 hours, with sponsor inventory and competitions built in.</p></div>
       </li>
       <li class="hot">
-        <div class="fig"><span data-count="53" data-suffix="M+">53M+</span><small>views across four seasons of State Farm's creator series</small></div>
+        <div class="fig"><span data-count="53" data-suffix="MM+">53MM+</span><small>views across four seasons of State Farm's creator series</small></div>
         <!-- Drop the State Farm logo in as pbm/statefarm.png. Until then a text card shows. -->
         <div class="vis"><div class="brandmark"><img src="/pbm/statefarm.png" alt="State Farm" loading="lazy" onerror="this.parentNode.classList.add('nologo');this.remove()"><span>State Farm<small>Gamerhood, Season 5</small></span></div></div>
         <div><h3>State Farm already pays to reach this audience, and Max is in the cast</h3>
@@ -465,7 +526,6 @@ footer.legal p{max-width:70em}
   <div class="inner detail-grid">
     <div>
     <h2 class="display h-mid">Local market detail</h2>
-    <div class="price"><b>$10K–$100K</b><span>per Campus Partner, based on your inventory and your market. Reserved for your school to sell.</span></div>
     <p class="gets-lead">Every Campus Partner package includes:</p>
     <ul class="gets">
       <li>One sponsored segment in the stream</li>
@@ -479,46 +539,6 @@ footer.legal p{max-width:70em}
     </ul>
     </div>
     <div class="clip detail-clip"><span class="tag">Concept render</span><video muted loop playsinline preload="none" poster="/pbm/arrival.jpg" data-autoplay><source src="/pbm/arrival.mp4" type="video/mp4"></video></div>
-  </div>
-</section>
-
-<section class="deal" id="deal" data-chat="deal">
-  <div class="inner">
-    <div class="top">
-      <div class="zero display" aria-hidden="true">$0</div>
-      <div>
-        <h2 class="display"><span data-school="{s} hosts.">Your school hosts.</span><br>Zero fee.</h2>
-        <p>You open the doors. We bring the talent, the production and the audience.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div>
-        <h3>You get</h3>
-        <ul>
-          <li>A reserved sponsor package to sell</li>
-          <li>2 NIL spots to sell, with athlete posts and a featured segment</li>
-          <li>10 talent mentions across the week</li>
-          <li>8 student spots for hands-on production experience</li>
-          <li>An on-site activation for the student body</li>
-          <li>PR and media inclusion, plus a post-campaign report</li>
-        </ul>
-      </div>
-      <div>
-        <h3>We ask</h3>
-        <ul>
-          <li>Official facility access and security</li>
-          <li>Pass-through brand usage rights</li>
-          <li>NIL coordination</li>
-          <li>4 social posts from official Athletics channels</li>
-        </ul>
-      </div>
-    </div>
-    <div class="delivery">
-      <div><b>8–15M</b><span>projected impressions per stream</span></div>
-      <div><b>2–5M</b><span>projected video views</span></div>
-      <div><b>72%</b><span>of the audience is under 34</span></div>
-    </div>
-    <p class="note">Projections are based on current audience performance and comparable Max streams. Actual results will vary.</p>
   </div>
 </section>
 
@@ -678,7 +698,7 @@ const CONFIG = {
     close: [["campusfan22","bring it to OUR campus"],["sys","Your school could be next"]]
   };
   const HUES = ["#ffb81c","#1cc8dc","#b392ff","#ff7a59","#7ddc7a","#ff8fc7"];
-  const list = $("#chat"); const seen = new Set();
+  const list = $("#chat"), tick1 = $("#ticker"); const seen = new Set();
   function say(user, text, delay){
     setTimeout(() => {
       const li = document.createElement("li");
@@ -686,6 +706,7 @@ const CONFIG = {
       else { const b = document.createElement("b"); b.textContent = user; b.style.color = HUES[user.length % HUES.length]; li.append(b, document.createTextNode(text)); }
       list.append(li);
       while (list.children.length > 16) list.firstElementChild.remove();
+      if (tick1){ tick1.className = (user==="sys" ? "sys " : "") + "in"; tick1.replaceChildren(...[...li.childNodes].map(n => n.cloneNode(true))); void tick1.offsetWidth; }
     }, reduce ? 0 : delay);
   }
   if (list && "IntersectionObserver" in window){
